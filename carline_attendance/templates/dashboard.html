@@ -103,6 +103,7 @@
                     <th>Last Punch</th>
                     <th>Status</th>
                     <th>Last Updated</th>
+                    <th>Total Hours</th>
                 </tr>
             </thead>
             <tbody>
@@ -156,10 +157,17 @@
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
+                    <td>
+                        {% if att.total_hours %}
+                            <span class="badge bg-light text-dark border font-monospace">{{ att.total_hours }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center py-5 text-muted">
+                    <td colspan="9" class="text-center py-5 text-muted">
                         <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                         No attendance records found for today.
                     </td>

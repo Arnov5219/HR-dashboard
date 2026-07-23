@@ -89,7 +89,8 @@ class AttendanceDashboardTestCase(TestCase):
                 'out_time': None,
                 'last_punch': time(9, 0),
                 'status': 'Working',
-                'last_updated': datetime.combine(self.today, time(9, 0))
+                'last_updated': datetime.combine(self.today, time(9, 0)),
+                'total_hours': '09:00'
             },
             {
                 'employee_id': 'EMP002',
@@ -99,7 +100,8 @@ class AttendanceDashboardTestCase(TestCase):
                 'out_time': None,
                 'last_punch': time(13, 0),
                 'status': 'On Break',
-                'last_updated': datetime.combine(self.today, time(13, 0))
+                'last_updated': datetime.combine(self.today, time(13, 0)),
+                'total_hours': '04:00'
             }
         ]
 
@@ -119,6 +121,8 @@ class AttendanceDashboardTestCase(TestCase):
         content = response.content.decode()
         self.assertIn("John Doe", content)
         self.assertIn("Jane Smith", content)
+        self.assertIn("09:00", content)
+        self.assertIn("04:00", content)
 
     def test_search_by_employee_id(self) -> None:
         """Search query matching employee_id should filter records."""

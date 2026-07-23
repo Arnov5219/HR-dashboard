@@ -77,6 +77,44 @@ def parse_excel_datetime(val):
                 continue
     return str(val)
 
+def parse_excel_total_hours(cell):
+    """
+    Safely parse total hours from an Excel cell.
+    Handles datetime, time, float/int and string, formatting it as a string
+    matching the Excel display (e.g. HH:MM or decimal format).
+    """
+    if cell is None:
+        return None
+    val = cell.value
+    if val is None or val == "":
+        return None
+    
+    num_fmt = cell.number_format or ""
+    
+    if isinstance(val, datetime):
+        return val.strftime("%H:%M")
+    if isinstance(val, time):
+        return val.strftime("%H:%M")
+    if isinstance(val, (int, float)):
+        # If number format doesn't look like time (e.g., standard decimal format)
+        if "h" not in num_fmt.lower() and "m" not in num_fmt.lower():
+            return f"{val:.2f}"
+        
+        # Excel stores time as a fraction of a 24-hour day
+        total_hours = val * 24
+        wrapped_hours = total_hours % 24
+        hours = int(wrapped_hours)
+        minutes = int((wrapped_hours - hours) * 60 + 0.5)
+        if minutes >= 60:
+            hours += 1
+            minutes -= 60
+        hours = hours % 24
+        return f"{hours:02d}:{minutes:02d}"
+    if isinstance(val, str):
+        return val.strip()
+    return str(val)
+
+
 def read_attendance_data():
     """
     Reads attendance records from HR_Master.xlsm.
@@ -121,7 +159,8 @@ def read_attendance_data():
             'out_time': ['out', 'out time', 'out_time'],
             'last_punch': ['last punch', 'last_punch'],
             'status': ['status'],
-            'last_updated': ['last updated', 'last_updated']
+            'last_updated': ['last updated', 'last_updated'],
+            'total_hours': ['total hours', 'total_hours', 'total', 'hours']
         }
 
         indices = {}
@@ -133,7 +172,7 @@ def read_attendance_data():
                     break
             indices[key] = found_idx
 
-        # If headers matching fails, fall back to exact column offsets (A to H)
+        # If headers matching fails, fall back to exact column offsets (A to I)
         if indices['employee_id'] is None:
             indices['employee_id'] = 0
         if indices['employee_name'] is None:
@@ -150,28 +189,30 @@ def read_attendance_data():
             indices['status'] = 6
         if indices['last_updated'] is None:
             indices['last_updated'] = 7
+        if indices.get('total_hours') is None:
+            indices['total_hours'] = 8
 
         attendance_records = []
 
         # Iterate over data rows
-        for row in sheet.iter_rows(min_row=2, values_only=True):
+        for row in sheet.iter_rows(min_row=2, values_only=False):
             # Check maximum sheet length
             if len(row) <= max(indices.values()):
                 continue
 
-            emp_id_val = row[indices['employee_id']]
+            emp_id_val = row[indices['employee_id']].value
             if emp_id_val is None or str(emp_id_val).strip() == "":
                 continue
 
             emp_id = str(emp_id_val).strip()
-            emp_name = str(row[indices['employee_name']] or "").strip()
+            emp_name = str(row[indices['employee_name']].value or "").strip()
             
             # Parse Date
-            raw_date = row[indices['date']]
+            raw_date = row[indices['date']].value
             rec_date = parse_excel_date(raw_date)
             if not rec_date:
                 # Fallback: try parsing from last_updated if available
-                last_u_val = row[indices['last_updated']] if indices['last_updated'] is not None else None
+                last_u_val = row[indices['last_updated']].value if indices['last_updated'] is not None else None
                 if last_u_val:
                     rec_date = parse_excel_date(last_u_val)
                 # Fallback to today's date if still missing
@@ -179,11 +220,12 @@ def read_attendance_data():
                     rec_date = date.today()
 
             # Parse Punch Times and Status
-            in_t = parse_excel_time(row[indices['in_time']])
-            out_t = parse_excel_time(row[indices['out_time']])
-            last_p = parse_excel_time(row[indices['last_punch']])
-            status = str(row[indices['status']] or "Absent").strip()
-            last_u = parse_excel_datetime(row[indices['last_updated']])
+            in_t = parse_excel_time(row[indices['in_time']].value)
+            out_t = parse_excel_time(row[indices['out_time']].value)
+            last_p = parse_excel_time(row[indices['last_punch']].value)
+            status = str(row[indices['status']].value or "Absent").strip()
+            last_u = parse_excel_datetime(row[indices['last_updated']].value)
+            total_h = parse_excel_total_hours(row[indices['total_hours']])
 
             # Save as a direct python dict
             attendance_records.append({
@@ -194,7 +236,8 @@ def read_attendance_data():
                 'out_time': out_t,
                 'last_punch': last_p,
                 'status': status,
-                'last_updated': last_u
+                'last_updated': last_u,
+                'total_hours': total_h
             })
 
         return attendance_records
