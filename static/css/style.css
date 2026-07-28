@@ -46,46 +46,7 @@ body {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card-stats:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
-}
 
-.stats-card-border-working { border-top: 4px solid var(--status-working); }
-.stats-card-border-completed { border-top: 4px solid var(--status-completed); }
-.stats-card-border-late { border-top: 4px solid var(--status-late); }
-.stats-card-border-absent { border-top: 4px solid var(--status-absent); }
-
-.stats-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-}
-
-.stats-icon-total { background-color: rgba(11, 94, 142, 0.1); color: var(--primary-color); }
-.stats-icon-working { background-color: rgba(39, 174, 96, 0.1); color: var(--status-working); }
-.stats-icon-completed { background-color: rgba(11, 94, 142, 0.1); color: var(--status-completed); }
-.stats-icon-late { background-color: rgba(242, 153, 74, 0.1); color: var(--status-late); }
-.stats-icon-absent { background-color: rgba(235, 87, 87, 0.1); color: var(--status-absent); }
-
-/* Badges */
-.badge-status {
-    padding: 0.5em 0.8em;
-    font-weight: 600;
-    border-radius: 6px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.badge-working { background-color: rgba(39, 174, 96, 0.12); color: var(--status-working); border: 1px solid rgba(39, 174, 96, 0.2); }
-.badge-completed { background-color: rgba(11, 94, 142, 0.12); color: var(--status-completed); border: 1px solid rgba(11, 94, 142, 0.2); }
-.badge-late { background-color: rgba(242, 153, 74, 0.12); color: var(--status-late); border: 1px solid rgba(242, 153, 74, 0.2); }
-.badge-absent { background-color: rgba(235, 87, 87, 0.12); color: var(--status-absent); border: 1px solid rgba(235, 87, 87, 0.2); }
 
 /* Custom Excel-like Tables */
 .table-container {
@@ -251,13 +212,7 @@ body {
     background-color: #EDF2F7 !important;
 }
 
-/* Chart Canvas Wrapper */
-.chart-container {
-    position: relative;
-    margin: auto;
-    height: 250px;
-    width: 100%;
-}
+
 
 /* Utility Layouts */
 .date-range-badge {
@@ -299,12 +254,4 @@ body {
     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
 }
 
-.live-indicator {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background-color: var(--status-working);
-    border-radius: 50%;
-    margin-right: 6px;
-    animation: pulseGreen 2s infinite;
-}
+

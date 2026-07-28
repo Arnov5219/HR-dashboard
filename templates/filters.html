@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Filters{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1 text-primary">Attendance Filters</h2>
+        <p class="text-secondary mb-0">Select the employees, dates, or weeks you want to view.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'attendance:dashboard' %}">Back to Dashboard</a>
+</div>
+
+<form id="filters-form" class="card shadow-sm">
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Employee Name / ID</label>
+                <div class="dropdown">
+                    <button id="employee-button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">All employees</button>
+                    <div class="dropdown-menu p-3 w-100 shadow" style="min-width: 280px;">
+                        <input class="form-control form-control-sm mb-2" type="search" placeholder="Search name or ID" oninput="searchOptions('employee-options', this.value)">
+                        <div class="form-check border-bottom pb-2 mb-2">
+                            <input id="employee-all" class="form-check-input" type="checkbox" checked onchange="toggleAll('employee-options', this.checked)">
+                            <label class="form-check-label fw-semibold" for="employee-all">(Select All)</label>
+                        </div>
+                        <div id="employee-options" class="filter-options"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Date</label>
+                <div class="dropdown">
+                    <button id="date-button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">All dates</button>
+                    <div class="dropdown-menu p-3 w-100 shadow" style="min-width: 250px;">
+                        <input class="form-control form-control-sm mb-2" type="search" placeholder="Search date" oninput="searchOptions('date-options', this.value)">
+                        <div class="form-check border-bottom pb-2 mb-2">
+                            <input id="date-all" class="form-check-input" type="checkbox" checked onchange="toggleAll('date-options', this.checked)">
+                            <label class="form-check-label fw-semibold" for="date-all">(Select All)</label>
+                        </div>
+                        <div id="date-options" class="filter-options"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <label for="week-filter" class="form-label fw-semibold">Week</label>
+                <select id="week-filter" class="form-select">
+                    <option value="">All weeks</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer bg-white d-flex gap-2 justify-content-end">
+        <button id="reset-filters" class="btn btn-outline-secondary" type="button">Reset Filters</button>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check me-1"></i>Apply Filters</button>
+    </div>
+</form>
+
+<style>
+    .filter-options { max-height: 230px; overflow-y: auto; }
+    .filter-options .form-check { margin-bottom: .35rem; }
+    .date-month-group { border-bottom: 1px solid var(--bs-border-color); padding-bottom: .4rem; margin-bottom: .4rem; }
+</style>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const selectedValues = {
+        employees: new Set((params.get('employees') || '').split(',').filter(Boolean)),
+        dates: new Set((params.get('dates') || '').split(',').filter(Boolean))
+    };
+
+    function renderOptions(containerId, options, selected, label) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = options.map(option => `
+            <div class="form-check option-item">
+                <input class="form-check-input" type="checkbox" value="${option.value}" id="${containerId}-${option.value}" ${selected.has(option.value) ? 'checked' : ''} onchange="updateFilterButton('${containerId}', '${label}')">
+                <label class="form-check-label" for="${containerId}-${option.value}">${option.label}</label>
+            </div>
+        `).join('');
+        if (!selected.size) toggleAll(containerId, true);
+        updateFilterButton(containerId, label);
+    }
+
+    function renderDateOptions(dates, selected) {
+        const byMonth = dates.reduce((groups, date) => {
+            const monthKey = date.value.slice(0, 7);
+            groups[monthKey] ??= [];
+            groups[monthKey].push(date);
+            return groups;
+        }, {});
+        const container = document.getElementById('date-options');
+        container.innerHTML = Object.entries(byMonth).map(([monthKey, monthDates]) => {
+            const monthLabel = new Date(`${monthKey}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            return `
+                <div class="date-month-group">
+                    <div class="form-check option-item">
+                        <input class="form-check-input date-month-checkbox" type="checkbox" id="date-month-${monthKey}" data-month="${monthKey}" onchange="toggleDateMonth(this)">
+                        <label class="form-check-label fw-semibold" for="date-month-${monthKey}">${monthLabel}</label>
+                    </div>
+                    <div class="ms-4 mt-1">
+                        ${monthDates.map(date => `
+                            <div class="form-check option-item">
+                                <input class="form-check-input date-checkbox" type="checkbox" value="${date.value}" data-month="${monthKey}" id="date-options-${date.value}" ${selected.has(date.value) ? 'checked' : ''} onchange="updateFilterButton('date-options', 'date')">
+                                <label class="form-check-label" for="date-options-${date.value}">${date.label}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+        }).join('');
+        if (!selected.size) toggleAll('date-options', true);
+        updateFilterButton('date-options', 'date');
+    }
+
+    function searchOptions(containerId, text) {
+        const query = text.toLowerCase();
+        document.querySelectorAll(`#${containerId} .option-item`).forEach(item => {
+            item.classList.toggle('d-none', !item.textContent.toLowerCase().includes(query));
+        });
+    }
+
+    function toggleAll(containerId, checked) {
+        const selector = containerId === 'date-options' ? 'input.date-checkbox' : 'input';
+        document.querySelectorAll(`#${containerId} ${selector}`).forEach(input => input.checked = checked);
+        updateFilterButton(containerId, containerId === 'employee-options' ? 'employee' : 'date');
+    }
+
+    function toggleDateMonth(monthCheckbox) {
+        document.querySelectorAll(`#date-options input.date-checkbox[data-month="${monthCheckbox.dataset.month}"]`).forEach(input => input.checked = monthCheckbox.checked);
+        updateFilterButton('date-options', 'date');
+    }
+
+    function syncDateMonths() {
+        document.querySelectorAll('#date-options .date-month-checkbox').forEach(monthCheckbox => {
+            const dates = [...document.querySelectorAll(`#date-options input.date-checkbox[data-month="${monthCheckbox.dataset.month}"]`)];
+            const selected = dates.filter(input => input.checked).length;
+            monthCheckbox.checked = selected === dates.length;
+            monthCheckbox.indeterminate = selected > 0 && selected < dates.length;
+        });
+    }
+
+    function updateFilterButton(containerId, label) {
+        const selector = containerId === 'date-options' ? 'input.date-checkbox' : 'input';
+        const inputs = [...document.querySelectorAll(`#${containerId} ${selector}`)];
+        const selected = inputs.filter(input => input.checked);
+        const allCheckbox = document.getElementById(containerId === 'employee-options' ? 'employee-all' : 'date-all');
+        allCheckbox.checked = selected.length === inputs.length;
+        document.getElementById(`${label}-button`).textContent = selected.length === inputs.length ? `All ${label}s` : `${selected.length} ${label}${selected.length === 1 ? '' : 's'} selected`;
+        if (containerId === 'date-options') syncDateMonths();
+    }
+
+    function checkedValues(containerId) {
+        const selector = containerId === 'date-options' ? 'input.date-checkbox:checked' : 'input:checked';
+        return [...document.querySelectorAll(`#${containerId} ${selector}`)].map(input => input.value);
+    }
+
+    async function loadFilterOptions() {
+        const response = await fetch('/api/filters/');
+        if (!response.ok) throw new Error('Unable to load filter options.');
+        const data = await response.json();
+        renderOptions('employee-options', data.employees.map(employee => ({ value: employee.id, label: `${employee.name} (${employee.id})` })), selectedValues.employees, 'employee');
+        renderDateOptions(data.available_dates, selectedValues.dates);
+        data.weeks.forEach(week => document.getElementById('week-filter').add(new Option(week, week)));
+        document.getElementById('week-filter').value = params.get('weeks') || '';
+    }
+
+    document.getElementById('filters-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const dashboardParams = new URLSearchParams();
+        const employees = checkedValues('employee-options');
+        const dates = checkedValues('date-options');
+        const employeeCount = document.querySelectorAll('#employee-options input').length;
+        const dateCount = document.querySelectorAll('#date-options input.date-checkbox').length;
+        if (employees.length && employees.length !== employeeCount) dashboardParams.set('employees', employees.join(','));
+        if (dates.length && dates.length !== dateCount) dashboardParams.set('dates', dates.join(','));
+        if (document.getElementById('week-filter').value) dashboardParams.set('weeks', document.getElementById('week-filter').value);
+        dashboardParams.set('refresh', '1');
+        window.location.href = `/?${dashboardParams.toString()}`;
+    });
+
+    document.getElementById('reset-filters').addEventListener('click', () => window.location.href = '/filters/');
+    loadFilterOptions().catch(error => alert(error.message));
+</script>
+{% endblock %}

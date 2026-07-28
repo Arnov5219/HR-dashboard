@@ -188,9 +188,9 @@ class AttendanceDashboardTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode())
         
-        # Returns only yesterday's record for Jane Smith
-        self.assertEqual(data['total_count'], 1)
-        self.assertEqual(data['records'][0]['employee_name'], 'Jane Smith')
-        self.assertEqual(data['records'][0]['status'], 'Present')
+        # Returns both yesterday's record for Jane Smith and today's record for John Doe
+        self.assertEqual(data['total_count'], 2)
+        self.assertEqual(data['records'][0]['employee_name'], 'John Doe')
+        self.assertEqual(data['records'][1]['employee_name'], 'Jane Smith')
 
 from datetime import timedelta

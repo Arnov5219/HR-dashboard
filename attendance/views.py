@@ -19,6 +19,10 @@ def dashboard_view(request):
         'office_start_time': getattr(settings, 'OFFICE_START_TIME', '09:30')
     })
 
+def filters_view(request):
+    """Render the standalone attendance filters page."""
+    return render(request, 'filters.html')
+
 def api_stats_view(request):
     """JSON view returning today's dashboard counts."""
     try:
@@ -130,10 +134,20 @@ def api_filters_view(request):
         # Status choices
         statuses = ['Present', 'Late', 'Absent']
         
+        # Unique Months list (e.g. "July 2026")
+        months_list = sorted(list(set(r['date'].strftime('%B %Y') for r in records if r['date'])), key=lambda m: datetime.strptime(m, '%B %Y'), reverse=True)
+        
+        # Unique Weeks list (e.g. "Week 30 (2026)")
+        weeks_list = sorted(list(set(f"Week {r['date'].isocalendar().week} ({r['date'].year})" for r in records if r['date'])), key=lambda w: (int(w.split('(')[1].split(')')[0]), int(w.split('Week ')[1].split(' ')[0])), reverse=True)
+        
         # Date hierarchy Year -> Month -> Day
         # Group dates dynamically
         date_hierarchy = {}
-        unique_dates = sorted(list(set(r['date'] for r in records)), reverse=True)
+        unique_dates = sorted(list(set(r['date'] for r in records if r['date'])), reverse=True)
+        available_dates = [
+            {'value': d.strftime('%Y-%m-%d'), 'label': d.strftime('%d-%m-%Y')}
+            for d in unique_dates
+        ]
         
         # Months names mapping helper
         month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -154,7 +168,10 @@ def api_filters_view(request):
         return JsonResponse({
             'employees': emp_list,
             'statuses': statuses,
-            'dates': date_hierarchy
+            'dates': date_hierarchy,
+            'available_dates': available_dates,
+            'months': months_list,
+            'weeks': weeks_list
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -174,6 +191,18 @@ def _parse_request_filters(request):
         status_list = [x.strip() for x in status_list.split(',') if x.strip()]
     else:
         status_list = []
+        
+    months = request.GET.get('months', '')
+    if months:
+        months = [x.strip() for x in months.split(',') if x.strip()]
+    else:
+        months = []
+        
+    weeks = request.GET.get('weeks', '')
+    if weeks:
+        weeks = [x.strip() for x in weeks.split(',') if x.strip()]
+    else:
+        weeks = []
         
     # Date Range Filter
     date_range_type = request.GET.get('date_range', '')
@@ -201,11 +230,11 @@ def _parse_request_filters(request):
         if selected_dates_str:
             dates_list = [ExcelAttendanceService._parse_date(x.strip()) for x in selected_dates_str.split(',') if x.strip()]
             dates_list = [d for d in dates_list if d is not None]
-            return search_query, employee_ids, status_list, None, None, dates_list
+            return search_query, employee_ids, status_list, None, None, dates_list, months, weeks
             
-    return search_query, employee_ids, status_list, start_date, end_date, None
+    return search_query, employee_ids, status_list, start_date, end_date, None, months, weeks
 
-def _apply_custom_filters(records, search_query, employee_ids, status_list, start_date, end_date, selected_dates):
+def _apply_custom_filters(records, search_query, employee_ids, status_list, start_date, end_date, selected_dates, months, weeks):
     """Helper to apply parsed filters on records."""
     # 1. Apply base filters using service
     date_range = None
@@ -217,7 +246,9 @@ def _apply_custom_filters(records, search_query, employee_ids, status_list, star
         search_query=search_query,
         employee_ids=employee_ids,
         date_range=date_range,
-        status_list=status_list
+        status_list=status_list,
+        months=months,
+        weeks=weeks
     )
     
     # 2. Apply multi-select hierarchical date checklist if active
@@ -227,11 +258,11 @@ def _apply_custom_filters(records, search_query, employee_ids, status_list, star
         
     return filtered
 
-def _paginate_and_serialize(request, records):
+def _paginate_and_serialize(request, records, default_sort_col='', default_sort_dir='asc'):
     """Helper to sort, paginate and serialize JSON response."""
     # Sorting parameters
-    sort_col = request.GET.get('sort_col', '')
-    sort_dir = request.GET.get('sort_dir', 'asc') # asc or desc
+    sort_col = request.GET.get('sort_col', default_sort_col)
+    sort_dir = request.GET.get('sort_dir', default_sort_dir) # asc or desc
     
     # Sort
     sorted_records = ExcelAttendanceService.get_filtered_records(records, sort_col=sort_col, sort_dir=sort_dir)
@@ -257,9 +288,9 @@ def _paginate_and_serialize(request, records):
         serialized.append({
             'employee_id': r['employee_id'],
             'employee_name': r['employee_name'],
-            'date': r['date'].strftime('%Y-%m-%d') if r['date'] else None,
-            'in_time': r['in_time'].strftime('%H:%M:%S') if r['in_time'] else None,
-            'out_time': r['out_time'].strftime('%H:%M:%S') if r['out_time'] else None,
+            'date': r['date'].strftime('%d-%m-%Y') if r['date'] else None,
+            'in_time': r['in_time'].strftime('%H:%M') if r['in_time'] else None,
+            'out_time': r['out_time'].strftime('%H:%M') if r['out_time'] else None,
             'total_hours': r['total_hours'],
             'status': r['status']
         })
@@ -283,8 +314,8 @@ def api_attendance_today_view(request):
         records = ExcelAttendanceService.get_processed_records(today)
         
         # Parse and apply search/filters
-        search_q, emp_ids, statuses, start_d, end_d, sel_dates = _parse_request_filters(request)
-        filtered = _apply_custom_filters(records, search_q, emp_ids, statuses, start_d, end_d, sel_dates)
+        search_q, emp_ids, statuses, start_d, end_d, sel_dates, months, weeks = _parse_request_filters(request)
+        filtered = _apply_custom_filters(records, search_q, emp_ids, statuses, start_d, end_d, sel_dates, months, weeks)
         
         # Paginate & return
         data = _paginate_and_serialize(request, filtered)
@@ -299,11 +330,16 @@ def api_attendance_history_view(request):
         records = ExcelAttendanceService.get_all_attendance_history(today)
         
         # Parse and apply search/filters
-        search_q, emp_ids, statuses, start_d, end_d, sel_dates = _parse_request_filters(request)
-        filtered = _apply_custom_filters(records, search_q, emp_ids, statuses, start_d, end_d, sel_dates)
+        search_q, emp_ids, statuses, start_d, end_d, sel_dates, months, weeks = _parse_request_filters(request)
+        filtered = _apply_custom_filters(records, search_q, emp_ids, statuses, start_d, end_d, sel_dates, months, weeks)
         
         # Paginate & return
-        data = _paginate_and_serialize(request, filtered)
+        data = _paginate_and_serialize(
+            request,
+            filtered,
+            default_sort_col='date',
+            default_sort_dir='desc'
+        )
         return JsonResponse(data)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -321,8 +357,8 @@ def api_export_view(request):
             records = ExcelAttendanceService.get_all_attendance_history(today)
             
         # Parse and apply search/filters
-        search_q, emp_ids, statuses, start_d, end_d, sel_dates = _parse_request_filters(request)
-        filtered = _apply_custom_filters(records, search_q, emp_ids, statuses, start_d, end_d, sel_dates)
+        search_q, emp_ids, statuses, start_d, end_d, sel_dates, months, weeks = _parse_request_filters(request)
+        filtered = _apply_custom_filters(records, search_q, emp_ids, statuses, start_d, end_d, sel_dates, months, weeks)
         
         # Apply sorting before export
         sort_col = request.GET.get('sort_col', '')

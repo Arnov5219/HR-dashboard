@@ -226,8 +226,8 @@ class ExcelAttendanceService:
     def get_all_attendance_history(cls, today_date):
         _, records = cls.load_data()
         
-        # All records not for today
-        history_records = [r for r in records if r['date'] != today_date]
+        # Return all records (including today's)
+        history_records = list(records)
         
         processed = []
         for r in history_records:
@@ -253,7 +253,7 @@ class ExcelAttendanceService:
         }
 
     @classmethod
-    def get_filtered_records(cls, records, search_query=None, employee_ids=None, date_range=None, status_list=None, sort_col=None, sort_dir=None):
+    def get_filtered_records(cls, records, search_query=None, employee_ids=None, date_range=None, status_list=None, sort_col=None, sort_dir=None, months=None, weeks=None):
         filtered = list(records)
         
         # 1. Global Search Query
@@ -294,6 +294,20 @@ class ExcelAttendanceService:
                 status_list = [x.strip() for x in status_list.split(',') if x.strip()]
             status_set = set(x.lower() for x in status_list)
             filtered = [r for r in filtered if r['status'].lower() in status_set]
+            
+        # 4b. Months filter (Multi-select)
+        if months:
+            if isinstance(months, str):
+                months = [x.strip() for x in months.split(',') if x.strip()]
+            months_set = set(months)
+            filtered = [r for r in filtered if r['date'] and r['date'].strftime('%B %Y') in months_set]
+            
+        # 4c. Weeks filter (Multi-select)
+        if weeks:
+            if isinstance(weeks, str):
+                weeks = [x.strip() for x in weeks.split(',') if x.strip()]
+            weeks_set = set(weeks)
+            filtered = [r for r in filtered if r['date'] and f"Week {r['date'].isocalendar().week} ({r['date'].year})" in weeks_set]
             
         # 5. Sorting
         if sort_col:
