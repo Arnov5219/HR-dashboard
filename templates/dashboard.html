@@ -1,0 +1,1004 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}HR Attendance Dashboard{% endblock %}
+
+{% block content %}
+<!-- Top Header & Refresh -->
+<div class="row align-items-center mb-4">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1 text-primary">HR Attendance Dashboard</h2>
+        <p class="text-secondary mb-0">
+            Employee attendance records from HR_Master.xlsm. Configured office start time: <strong class="text-dark">{{ office_start_time }} AM</strong>
+        </p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <button id="btn-refresh-all" class="btn btn-outline-primary fw-semibold px-4 rounded-pill shadow-sm" onclick="refreshAllData()">
+            <i class="fa-solid fa-arrows-rotate me-1.5"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Summary Cards (4 KPI) -->
+<div class="row g-3 mb-4">
+    <!-- Total Employees -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats p-3 text-center border-0 shadow-sm">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="text-start">
+                    <span class="text-secondary small fw-semibold text-uppercase d-block mb-1">Total Employees</span>
+                    <h3 id="card-total" class="fw-bold mb-0">-</h3>
+                </div>
+                <div class="stats-icon stats-icon-total">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Present -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats p-3 text-center border-0 stats-card-border-completed shadow-sm">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="text-start">
+                    <span class="text-secondary small fw-semibold text-uppercase d-block mb-1">Present</span>
+                    <h3 id="card-present" class="fw-bold mb-0 text-primary">-</h3>
+                </div>
+                <div class="stats-icon stats-icon-completed">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Late -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats p-3 text-center border-0 stats-card-border-late shadow-sm">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="text-start">
+                    <span class="text-secondary small fw-semibold text-uppercase d-block mb-1">Late Arrivals</span>
+                    <h3 id="card-late" class="fw-bold mb-0 text-warning">-</h3>
+                </div>
+                <div class="stats-icon stats-icon-late">
+                    <i class="fa-solid fa-user-minus"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Absent -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats p-3 text-center border-0 stats-card-border-absent shadow-sm">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="text-start">
+                    <span class="text-secondary small fw-semibold text-uppercase d-block mb-1">Absent</span>
+                    <h3 id="card-absent" class="fw-bold mb-0 text-danger">-</h3>
+                </div>
+                <div class="stats-icon stats-icon-absent">
+                    <i class="fa-solid fa-user-xmark"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Filter and Control Toolbar -->
+<div class="card p-3 mb-4 border-start border-primary border-4 shadow-sm">
+    <div class="row g-3 align-items-center">
+        <!-- Global Search -->
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-secondary"></i></span>
+                <input id="global-search" type="text" class="form-control border-start-0" placeholder="Global search employee name, ID, status..." onkeyup="onGlobalSearch(this.value)">
+            </div>
+        </div>
+        <!-- Employee Multiselect Filter -->
+        <div class="col-md-6">
+            <div class="dropdown w-100">
+                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" type="button" id="employeeFilterBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span><i class="fa-solid fa-user me-2"></i>Filter Employees</span>
+                </button>
+                <div class="dropdown-menu p-3 w-100 shadow" aria-labelledby="employeeFilterBtn" style="max-height: 250px; overflow-y: auto;">
+                    <input type="text" class="form-control form-control-sm mb-2" id="employeeSearchDropdown" placeholder="Search employees..." onkeyup="filterDropdownList('employeeList', this.value)">
+                    <div class="form-check border-bottom pb-1 mb-1">
+                        <input class="form-check-input" type="checkbox" id="employeeSelectAll" checked onclick="toggleDropdownSelectAll('employeeList', this.checked)">
+                        <label class="form-check-label fw-bold" for="employeeSelectAll">Select All</label>
+                    </div>
+                    <div id="employeeList">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==============================================
+     TODAY'S ATTENDANCE SECTION (WHITE, BOLD, LARGE)
+     ============================================== -->
+<div class="card p-4 mb-4 border-top border-primary border-4 shadow-sm position-relative">
+    <div class="loading-overlay" id="loading-today">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center border-bottom pb-3 mb-3">
+        <div>
+            <h4 class="fw-bold mb-1 text-primary d-flex align-items-center">
+                Today's Attendance
+            </h4>
+            <p class="text-secondary small mb-0">Overview of today's attendance records</p>
+        </div>
+        <div class="mt-2 mt-md-0 d-flex align-items-center gap-2">
+            <label class="text-secondary small mb-0">Show:</label>
+            <select class="form-select form-select-sm" style="width: 80px;" onchange="setTableLimit('today', this.value)">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="table-responsive table-container mb-3" style="max-height: 400px;">
+        <table class="table table-hover align-middle table-today">
+            <thead class="sticky-table-header">
+                <tr>
+                    <th class="excel-filter-th">
+                        Employee ID
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'employee_id', 'asc')"><i class="fa-solid fa-sort-up"></i> A-Z</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'employee_id', 'desc')"><i class="fa-solid fa-sort-down"></i> Z-A</button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm filter-search-box" placeholder="Search ID..." onkeyup="filterCheckboxes(this)">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input select-all-check" type="checkbox" checked onclick="toggleCheckboxes(this)">
+                                    <label class="form-check-label fw-bold">Select All</label>
+                                </div>
+                                <div class="filter-list" data-filter="employee_id" data-table="today">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        Employee Name
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'employee_name', 'asc')"><i class="fa-solid fa-sort-up"></i> A-Z</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'employee_name', 'desc')"><i class="fa-solid fa-sort-down"></i> Z-A</button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm filter-search-box" placeholder="Search name..." onkeyup="filterCheckboxes(this)">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input select-all-check" type="checkbox" checked onclick="toggleCheckboxes(this)">
+                                    <label class="form-check-label fw-bold">Select All</label>
+                                </div>
+                                <div class="filter-list" data-filter="employee_name" data-table="today">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        Status
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <input type="text" class="form-control form-control-sm filter-search-box" placeholder="Search status..." onkeyup="filterCheckboxes(this)">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input select-all-check" type="checkbox" checked onclick="toggleCheckboxes(this)">
+                                    <label class="form-check-label fw-bold">Select All</label>
+                                </div>
+                                <div class="filter-list" data-filter="status" data-table="today">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th>Date</th>
+                    <th class="excel-filter-th">
+                        IN
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'in_time', 'asc')"><i class="fa-solid fa-sort-up"></i> Asc</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'in_time', 'desc')"><i class="fa-solid fa-sort-down"></i> Desc</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        OUT
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'out_time', 'asc')"><i class="fa-solid fa-sort-up"></i> Asc</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('today', 'out_time', 'desc')"><i class="fa-solid fa-sort-down"></i> Desc</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th>Total Hours</th>
+                </tr>
+            </thead>
+            <tbody id="today-table-body">
+                <!-- Loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Today Pagination -->
+    <div class="d-flex justify-content-between align-items-center">
+        <span class="text-secondary small" id="today-table-info">Showing 0 to 0 of 0 entries</span>
+        <nav>
+            <ul class="pagination pagination-sm mb-0" id="today-pagination">
+                <!-- Loaded dynamically -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- ==============================================
+     PREVIOUS ATTENDANCE SECTION (LIGHT GRAY, SUBTLE)
+     ============================================== -->
+<div class="card p-4 border-top border-secondary border-4 shadow-sm position-relative bg-white">
+    <div class="loading-overlay" id="loading-history">
+        <div class="spinner-border text-secondary" role="status"></div>
+    </div>
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center border-bottom pb-3 mb-3">
+        <div>
+            <h5 class="fw-bold mb-1 text-secondary">
+                <i class="fa-solid fa-history me-1.5"></i>Previous Attendance
+            </h5>
+            <p class="text-secondary small mb-0">Historical logs of past punch cards and shifts</p>
+        </div>
+        <div class="mt-2 mt-md-0 d-flex align-items-center gap-3">
+            <!-- Date range selector -->
+            <div class="d-flex align-items-center gap-2">
+                <label class="text-secondary small mb-0 text-nowrap">Date Range:</label>
+                <select class="form-select form-select-sm" style="width: 140px;" onchange="setHistoryDateRange(this.value)">
+                    <option value="yesterday">Yesterday</option>
+                    <option value="last_7_days" selected>Last 7 Days</option>
+                    <option value="this_month">This Month</option>
+                    <option value="custom">Custom Range...</option>
+                </select>
+            </div>
+            
+            <!-- Custom Date Inputs (hidden unless custom selected) -->
+            <div id="custom-date-inputs" class="d-none align-items-center gap-2">
+                <input type="date" id="history-start-date" class="form-control form-control-sm" onchange="loadHistoryTable()">
+                <span class="small text-secondary">to</span>
+                <input type="date" id="history-end-date" class="form-control form-control-sm" onchange="loadHistoryTable()">
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <label class="text-secondary small mb-0">Show:</label>
+                <select class="form-select form-select-sm" style="width: 80px;" onchange="setTableLimit('history', this.value)">
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-responsive table-history-container mb-3">
+        <table class="table table-hover align-middle table-history">
+            <thead class="sticky-table-header">
+                <tr>
+                    <th class="excel-filter-th">
+                        Employee ID
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'employee_id', 'asc')"><i class="fa-solid fa-sort-up"></i> A-Z</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'employee_id', 'desc')"><i class="fa-solid fa-sort-down"></i> Z-A</button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm filter-search-box" placeholder="Search ID..." onkeyup="filterCheckboxes(this)">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input select-all-check" type="checkbox" checked onclick="toggleCheckboxes(this)">
+                                    <label class="form-check-label fw-bold">Select All</label>
+                                </div>
+                                <div class="filter-list" data-filter="employee_id" data-table="history">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        Employee Name
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'employee_name', 'asc')"><i class="fa-solid fa-sort-up"></i> A-Z</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'employee_name', 'desc')"><i class="fa-solid fa-sort-down"></i> Z-A</button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm filter-search-box" placeholder="Search name..." onkeyup="filterCheckboxes(this)">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input select-all-check" type="checkbox" checked onclick="toggleCheckboxes(this)">
+                                    <label class="form-check-label fw-bold">Select All</label>
+                                </div>
+                                <div class="filter-list" data-filter="employee_name" data-table="history">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        Status
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <input type="text" class="form-control form-control-sm filter-search-box" placeholder="Search status..." onkeyup="filterCheckboxes(this)">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input select-all-check" type="checkbox" checked onclick="toggleCheckboxes(this)">
+                                    <label class="form-check-label fw-bold">Select All</label>
+                                </div>
+                                <div class="filter-list" data-filter="status" data-table="history">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        Date
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg" style="width: 260px;">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'date', 'asc')"><i class="fa-solid fa-sort-up"></i> Oldest</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'date', 'desc')"><i class="fa-solid fa-sort-down"></i> Newest</button>
+                                </div>
+                                <div class="filter-list" id="dateHierarchyFilterList" data-filter="date" data-table="history" style="max-height: 220px;">
+                                    <!-- Date Tree populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        IN
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'in_time', 'asc')"><i class="fa-solid fa-sort-up"></i> Asc</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'in_time', 'desc')"><i class="fa-solid fa-sort-down"></i> Desc</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="excel-filter-th">
+                        OUT
+                        <div class="dropdown d-inline-block excel-filter-trigger">
+                            <i class="fa-solid fa-caret-down" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu excel-filter-dropdown p-2 shadow-lg">
+                                <div class="filter-actions">
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'out_time', 'asc')"><i class="fa-solid fa-sort-up"></i> Asc</button>
+                                    <button class="btn btn-xs btn-light py-0 px-1" onclick="sortTable('history', 'out_time', 'desc')"><i class="fa-solid fa-sort-down"></i> Desc</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                    <th>Total Hours</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                <!-- Loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- History Pagination -->
+    <div class="d-flex justify-content-between align-items-center">
+        <span class="text-secondary small" id="history-table-info">Showing 0 to 0 of 0 entries</span>
+        <nav>
+            <ul class="pagination pagination-sm mb-0" id="history-pagination">
+                <!-- Loaded dynamically -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<script>
+    // State storage for Fetch updates
+    const todayState = {
+        page: 1,
+        limit: 25,
+        sort_col: 'employee_name',
+        sort_dir: 'asc',
+        search: '',
+        employee_ids: [],
+        statuses: []
+    };
+
+    const historyState = {
+        page: 1,
+        limit: 25,
+        sort_col: 'date',
+        sort_dir: 'desc',
+        search: '',
+        employee_ids: [],
+        statuses: [],
+        dates: [], // specific date filters
+        date_range: 'last_7_days',
+        start_date: '',
+        end_date: ''
+    };
+
+    // Initial page load
+    document.addEventListener("DOMContentLoaded", () => {
+        // Load initial values for dropdown filters
+        loadFilterDropdowns();
+        
+        // Refresh tables and stats
+        refreshAllData();
+    });
+
+    function refreshAllData() {
+        loadStats();
+        loadTodayTable();
+        loadHistoryTable();
+    }
+
+    // Load general summary stats
+    async function loadStats() {
+        try {
+            const res = await fetch('/api/stats/');
+            const data = await res.json();
+            
+            document.getElementById('card-total').innerText = data.total_employees;
+            document.getElementById('card-present').innerText = data.present;
+            document.getElementById('card-late').innerText = data.late;
+            document.getElementById('card-absent').innerText = data.absent;
+        } catch (err) {
+            console.error("Failed to load statistics:", err);
+        }
+    }
+
+    // Fetch column options (employees, dates, etc.) and build dropdown checklists
+    async function loadFilterDropdowns() {
+        try {
+            const res = await fetch('/api/filters/');
+            const data = await res.json();
+            
+            // 1. Employee Multiselect Filter (main toolbar)
+            const empListDiv = document.getElementById('employeeList');
+            empListDiv.innerHTML = '';
+            data.employees.forEach(emp => {
+                const item = document.createElement('div');
+                item.className = 'form-check filter-list-item-node';
+                item.innerHTML = `
+                    <input class="form-check-input employee-filter-checkbox" type="checkbox" value="${emp.id}" id="emp-check-${emp.id}" checked onchange="onEmployeeFilterChange()">
+                    <label class="form-check-label" for="emp-check-${emp.id}">${emp.name} (${emp.id})</label>
+                `;
+                empListDiv.appendChild(item);
+            });
+            
+            // 2. Today Table column checklists
+            populateHeaderChecklist('today', 'employee_id', data.employees.map(e => ({ val: e.id, label: e.id })));
+            populateHeaderChecklist('today', 'employee_name', data.employees.map(e => ({ val: e.name, label: e.name })));
+            populateHeaderChecklist('today', 'status', data.statuses.map(s => ({ val: s, label: s })));
+            
+            // 3. History Table column checklists
+            populateHeaderChecklist('history', 'employee_id', data.employees.map(e => ({ val: e.id, label: e.id })));
+            populateHeaderChecklist('history', 'employee_name', data.employees.map(e => ({ val: e.name, label: e.name })));
+            populateHeaderChecklist('history', 'status', data.statuses.map(s => ({ val: s, label: s })));
+            
+            // 4. Date Hierarchical Checklist (Excel-like tree in History Date Header)
+            buildDateHierarchy(data.dates);
+            
+        } catch (err) {
+            console.error("Failed to load filter choices:", err);
+        }
+    }
+
+    // Populate standard checkbox checklists inside column headers
+    function populateHeaderChecklist(tableName, filterField, items) {
+        const lists = document.querySelectorAll(`.filter-list[data-filter="${filterField}"][data-table="${tableName}"]`);
+        lists.forEach(listDiv => {
+            listDiv.innerHTML = '';
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'filter-list-item';
+                div.innerHTML = `
+                    <input type="checkbox" value="${item.val}" checked onchange="onColumnCheckboxChange('${tableName}', '${filterField}')">
+                    <span>${item.label}</span>
+                `;
+                listDiv.appendChild(div);
+            });
+        });
+    }
+
+    // Build Excel-like Hierarchical Date Tree
+    function buildDateHierarchy(yearsTree) {
+        const container = document.getElementById('dateHierarchyFilterList');
+        container.innerHTML = '';
+        
+        Object.keys(yearsTree).sort((a,b)=>b-a).forEach(yr => {
+            const yrId = `yr-${yr}`;
+            const yrDiv = document.createElement('div');
+            yrDiv.className = 'hierarchy-root mb-1';
+            
+            yrDiv.innerHTML = `
+                <div class="d-flex align-items-center gap-1">
+                    <span class="hierarchy-toggle text-secondary" onclick="toggleCollapse('${yrId}')"><i class="fa-solid fa-chevron-down" id="toggle-icon-${yrId}"></i></span>
+                    <input type="checkbox" checked class="date-node-check" data-level="year" data-value="${yr}" onchange="toggleHierarchyCheckboxes(this)">
+                    <span class="fw-bold">${yr}</span>
+                </div>
+                <div class="hierarchy-node" id="${yrId}"></div>
+            `;
+            container.appendChild(yrDiv);
+            
+            const yrNode = document.getElementById(yrId);
+            
+            Object.keys(yearsTree[yr]).forEach(mName => {
+                const mIdx = getMonthIndexFromName(mName); // Returns index (1-12)
+                const mCode = `${yr}-${mIdx.toString().padStart(2, '0')}`;
+                const mId = `m-${mCode}`;
+                const mDiv = document.createElement('div');
+                mDiv.className = 'mb-1';
+                
+                mDiv.innerHTML = `
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="hierarchy-toggle text-secondary" onclick="toggleCollapse('${mId}')"><i class="fa-solid fa-chevron-down" id="toggle-icon-${mId}"></i></span>
+                        <input type="checkbox" checked class="date-node-check" data-level="month" data-value="${mCode}" onchange="toggleHierarchyCheckboxes(this)">
+                        <span>${mName}</span>
+                    </div>
+                    <div class="hierarchy-node" id="${mId}"></div>
+                `;
+                yrNode.appendChild(mDiv);
+                
+                const mNode = document.getElementById(mId);
+                
+                yearsTree[yr][mName].sort((a,b)=>b-a).forEach(day => {
+                    const dCode = `${mCode}-${day.toString().padStart(2, '0')}`;
+                    const dDiv = document.createElement('div');
+                    dDiv.className = 'd-flex align-items-center gap-1 py-0.5';
+                    
+                    dDiv.innerHTML = `
+                        <input type="checkbox" value="${dCode}" checked class="date-node-check date-leaf-checkbox" data-level="day" onchange="onDateLeafChange()">
+                        <span class="text-secondary">${day.toString().padStart(2, '0')}</span>
+                    `;
+                    mNode.appendChild(dDiv);
+                });
+            });
+        });
+    }
+
+    // Toggle collapse in tree structure
+    function toggleCollapse(nodeId) {
+        const div = document.getElementById(nodeId);
+        const icon = document.getElementById(`toggle-icon-${nodeId}`);
+        if (div.classList.contains('d-none')) {
+            div.classList.remove('d-none');
+            icon.className = 'fa-solid fa-chevron-down';
+        } else {
+            div.classList.add('d-none');
+            icon.className = 'fa-solid fa-chevron-right';
+        }
+    }
+
+    // Checking/unchecking year or month checks all children
+    function toggleHierarchyCheckboxes(el) {
+        const level = el.getAttribute('data-level');
+        const val = el.getAttribute('data-value');
+        const checked = el.checked;
+        
+        let selector = '';
+        if (level === 'year') {
+            selector = `input[data-value^="${val}"]`;
+            // Also select leaves (days) under that year
+            const yearNode = el.closest('.hierarchy-root').querySelector('.hierarchy-node');
+            const dayCheckboxes = yearNode.querySelectorAll('.date-leaf-checkbox');
+            dayCheckboxes.forEach(cb => cb.checked = checked);
+        } else if (level === 'month') {
+            selector = `input[data-value="${val}"]`;
+            // Select leaves under that month
+            const parentDiv = el.closest('div').nextElementSibling;
+            const dayCheckboxes = parentDiv.querySelectorAll('.date-leaf-checkbox');
+            dayCheckboxes.forEach(cb => cb.checked = checked);
+        }
+        
+        const children = el.closest('.hierarchy-root').querySelectorAll(selector);
+        children.forEach(child => child.checked = checked);
+        
+        onDateLeafChange();
+    }
+
+    // Helper month mapper
+    function getMonthIndexFromName(name) {
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        return months.indexOf(name) + 1;
+    }
+
+    // Trigger history reload when hierarchical date leaf changed
+    function onDateLeafChange() {
+        const checkedLeaves = document.querySelectorAll('.date-leaf-checkbox:checked');
+        const dates = Array.from(checkedLeaves).map(cb => cb.value);
+        
+        historyState.dates = dates;
+        historyState.page = 1;
+        loadHistoryTable();
+    }
+
+    // Filter checkbox items in column header dropdowns
+    function filterCheckboxes(inputEl) {
+        const text = inputEl.value.toLowerCase();
+        const items = inputEl.nextElementSibling.nextElementSibling.querySelectorAll('.filter-list-item');
+        items.forEach(item => {
+            const label = item.querySelector('span').innerText.toLowerCase();
+            if (label.includes(text)) {
+                item.classList.remove('d-none');
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+    }
+
+    // Toggle checklists (Select All checkbox in dropdown)
+    function toggleCheckboxes(selectAllEl) {
+        const checked = selectAllEl.checked;
+        const listDiv = selectAllEl.parentElement.nextElementSibling;
+        const checkboxes = listDiv.querySelectorAll('input[type="checkbox"]');
+        
+        checkboxes.forEach(cb => {
+            if (!cb.parentElement.classList.contains('d-none')) {
+                cb.checked = checked;
+            }
+        });
+        
+        const table = listDiv.getAttribute('data-table');
+        const filter = listDiv.getAttribute('data-filter');
+        onColumnCheckboxChange(table, filter);
+    }
+
+    // Handle column filter checklist toggle
+    function onColumnCheckboxChange(tableName, filterField) {
+        const lists = document.querySelectorAll(`.filter-list[data-filter="${filterField}"][data-table="${tableName}"]`);
+        let selected = [];
+        
+        // Loop and get unchecked items to see what was filtered out
+        const checkedBoxes = lists[0].querySelectorAll('input[type="checkbox"]:checked');
+        const totalBoxes = lists[0].querySelectorAll('input[type="checkbox"]');
+        
+        selected = Array.from(checkedBoxes).map(cb => cb.value);
+        
+        // If all selected, pass empty array to backend (means no filter/select all)
+        const activeFilter = (checkedBoxes.length === totalBoxes.length) ? [] : selected;
+        
+        if (tableName === 'today') {
+            if (filterField === 'employee_id' || filterField === 'employee_name') {
+                todayState.employee_ids = activeFilter;
+            } else if (filterField === 'status') {
+                todayState.statuses = activeFilter;
+            }
+            todayState.page = 1;
+            loadTodayTable();
+        } else {
+            if (filterField === 'employee_id' || filterField === 'employee_name') {
+                historyState.employee_ids = activeFilter;
+            } else if (filterField === 'status') {
+                historyState.statuses = activeFilter;
+            }
+            historyState.page = 1;
+            loadHistoryTable();
+        }
+    }
+
+    // Search bar helper (Main employee select checklist)
+    function filterDropdownList(listId, val) {
+        const text = val.toLowerCase();
+        const items = document.getElementById(listId).querySelectorAll('.filter-list-item-node');
+        items.forEach(item => {
+            const label = item.querySelector('label').innerText.toLowerCase();
+            if (label.includes(text)) {
+                item.classList.remove('d-none');
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+    }
+
+    // Toggle main employee filter checklists
+    function toggleDropdownSelectAll(listId, checked) {
+        const items = document.getElementById(listId).querySelectorAll('.employee-filter-checkbox');
+        items.forEach(item => {
+            if (!item.parentElement.classList.contains('d-none')) {
+                item.checked = checked;
+            }
+        });
+        onEmployeeFilterChange();
+    }
+
+    // Employee Filter toolbar change
+    function onEmployeeFilterChange() {
+        const checkBoxes = document.querySelectorAll('.employee-filter-checkbox:checked');
+        const totalBoxes = document.querySelectorAll('.employee-filter-checkbox');
+        
+        const selected = Array.from(checkBoxes).map(cb => cb.value);
+        const activeFilter = (checkBoxes.length === totalBoxes.length) ? [] : selected;
+        
+        // Sync to both tables
+        todayState.employee_ids = activeFilter;
+        historyState.employee_ids = activeFilter;
+        
+        todayState.page = 1;
+        historyState.page = 1;
+        
+        loadTodayTable();
+        loadHistoryTable();
+    }
+
+    // Global Search trigger
+    let searchTimeout = null;
+    function onGlobalSearch(query) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            todayState.search = query;
+            historyState.search = query;
+            
+            todayState.page = 1;
+            historyState.page = 1;
+            
+            loadTodayTable();
+            loadHistoryTable();
+        }, 300);
+    }
+
+    // Date range selector for History table
+    function setHistoryDateRange(range) {
+        historyState.date_range = range;
+        
+        const customDiv = document.getElementById('custom-date-inputs');
+        if (range === 'custom') {
+            customDiv.classList.remove('d-none');
+            customDiv.classList.add('d-flex');
+        } else {
+            customDiv.classList.remove('d-flex');
+            customDiv.classList.add('d-none');
+        }
+        
+        historyState.page = 1;
+        loadHistoryTable();
+    }
+
+    // Limit show counts (25, 50, 100...)
+    function setTableLimit(tableType, val) {
+        if (tableType === 'today') {
+            todayState.limit = parseInt(val);
+            todayState.page = 1;
+            loadTodayTable();
+        } else {
+            historyState.limit = parseInt(val);
+            historyState.page = 1;
+            loadHistoryTable();
+        }
+    }
+
+    // Sort column headers
+    function sortTable(tableType, colName, direction) {
+        if (tableType === 'today') {
+            todayState.sort_col = colName;
+            todayState.sort_dir = direction;
+            todayState.page = 1;
+            loadTodayTable();
+        } else {
+            historyState.sort_col = colName;
+            historyState.sort_dir = direction;
+            historyState.page = 1;
+            loadHistoryTable();
+        }
+    }
+
+    // Page switches
+    function changePage(tableType, page) {
+        if (tableType === 'today') {
+            todayState.page = page;
+            loadTodayTable();
+        } else {
+            historyState.page = page;
+            loadHistoryTable();
+        }
+    }
+
+    // Build endpoint query URL string
+    function buildQueryString(state) {
+        let params = new URLSearchParams();
+        params.append('page', state.page);
+        params.append('limit', state.limit);
+        if (state.sort_col) {
+            params.append('sort_col', state.sort_col);
+            params.append('sort_dir', state.sort_dir);
+        }
+        if (state.search) {
+            params.append('search', state.search);
+        }
+        if (state.employee_ids && state.employee_ids.length > 0) {
+            params.append('employees', state.employee_ids.join(','));
+        }
+        if (state.statuses && state.statuses.length > 0) {
+            params.append('statuses', state.statuses.join(','));
+        }
+        if (state.date_range) {
+            params.append('date_range', state.date_range);
+        }
+        if (state.date_range === 'custom') {
+            const start = document.getElementById('history-start-date').value;
+            const end = document.getElementById('history-end-date').value;
+            params.append('start_date', start);
+            params.append('end_date', end);
+        }
+        if (state.dates && state.dates.length > 0) {
+            params.append('dates', state.dates.join(','));
+            params.append('date_range', 'selected_dates');
+        }
+        return params.toString();
+    }
+
+    // Dynamic Today's table renderer
+    async function loadTodayTable() {
+        const overlay = document.getElementById('loading-today');
+        overlay.classList.add('active');
+        
+        try {
+            const query = buildQueryString(todayState);
+            const res = await fetch(`/api/attendance/today/?${query}`);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('today-table-body');
+            tbody.innerHTML = '';
+            
+            if (data.records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-inbox fs-2 d-block mb-2"></i>
+                            No attendance records found for today.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                data.records.forEach(r => {
+                    const row = document.createElement('tr');
+                    
+                    let statusBadge = '';
+                    if (r.status === 'Present') {
+                        statusBadge = '<span class="badge-status badge-completed"><i class="fa-solid fa-circle-check"></i> Present</span>';
+                    } else if (r.status === 'Late') {
+                        statusBadge = '<span class="badge-status badge-late"><i class="fa-solid fa-clock"></i> Late</span>';
+                    } else {
+                        statusBadge = '<span class="badge-status badge-absent"><i class="fa-solid fa-circle-xmark"></i> Absent</span>';
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="fw-bold">${r.employee_id}</td>
+                        <td class="fw-bold text-primary">${r.employee_name}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-secondary">${r.date}</td>
+                        <td>${r.in_time ? `<span class="badge bg-light text-dark border font-monospace">${r.in_time}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td>${r.out_time ? `<span class="badge bg-light text-dark border font-monospace">${r.out_time}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td>${r.total_hours ? `<span class="badge bg-light text-dark border font-monospace">${r.total_hours}</span>` : '<span class="text-muted">-</span>'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+            
+            // Stats indicator string
+            const startIdx = data.total_count === 0 ? 0 : (data.page - 1) * data.limit + 1;
+            const endIdx = Math.min(data.page * data.limit, data.total_count);
+            document.getElementById('today-table-info').innerText = `Showing ${startIdx} to ${endIdx} of ${data.total_count} entries`;
+            
+            renderPagination('today', data.page, data.pages);
+            
+        } catch (err) {
+            console.error("Failed to load today's attendance table:", err);
+        } finally {
+            overlay.classList.remove('active');
+        }
+    }
+
+    // Dynamic History table renderer
+    async function loadHistoryTable() {
+        const overlay = document.getElementById('loading-history');
+        overlay.classList.add('active');
+        
+        try {
+            const query = buildQueryString(historyState);
+            const res = await fetch(`/api/attendance/history/?${query}`);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = '';
+            
+            if (data.records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-inbox fs-2 d-block mb-2"></i>
+                            No historical records found matching filter states.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                data.records.forEach(r => {
+                    const row = document.createElement('tr');
+                    
+                    let statusBadge = '';
+                    if (r.status === 'Present') {
+                        statusBadge = '<span class="badge-status badge-completed"><i class="fa-solid fa-circle-check"></i> Present</span>';
+                    } else if (r.status === 'Late') {
+                        statusBadge = '<span class="badge-status badge-late"><i class="fa-solid fa-clock"></i> Late</span>';
+                    } else {
+                        statusBadge = '<span class="badge-status badge-absent"><i class="fa-solid fa-circle-xmark"></i> Absent</span>';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${r.employee_id}</td>
+                        <td class="text-primary fw-medium">${r.employee_name}</td>
+                        <td>${statusBadge}</td>
+                        <td>${r.date}</td>
+                        <td>${r.in_time ? `<span class="badge bg-light text-dark border font-monospace">${r.in_time}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td>${r.out_time ? `<span class="badge bg-light text-dark border font-monospace">${r.out_time}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td>${r.total_hours ? `<span class="badge bg-light text-dark border font-monospace">${r.total_hours}</span>` : '<span class="text-muted">-</span>'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+            
+            // Stats indicator string
+            const startIdx = data.total_count === 0 ? 0 : (data.page - 1) * data.limit + 1;
+            const endIdx = Math.min(data.page * data.limit, data.total_count);
+            document.getElementById('history-table-info').innerText = `Showing ${startIdx} to ${endIdx} of ${data.total_count} entries`;
+            
+            renderPagination('history', data.page, data.pages);
+            
+        } catch (err) {
+            console.error("Failed to load historical attendance table:", err);
+        } finally {
+            overlay.classList.remove('active');
+        }
+    }
+
+    // Build pagination links
+    function renderPagination(tableType, currentPage, totalPages) {
+        const pag = document.getElementById(`${tableType}-pagination`);
+        pag.innerHTML = '';
+        
+        if (totalPages <= 1) return;
+        
+        // Prev button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage('${tableType}', ${currentPage - 1}); return false;"><i class="fa-solid fa-angle-left"></i></a>`;
+        pag.appendChild(prevLi);
+        
+        // Range logic
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+        if (endPage - startPage < maxPagesToShow - 1) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${currentPage === i ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changePage('${tableType}', ${i}); return false;">${i}</a>`;
+            pag.appendChild(li);
+        }
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage('${tableType}', ${currentPage + 1}); return false;"><i class="fa-solid fa-angle-right"></i></a>`;
+        pag.appendChild(nextLi);
+    }
+</script>
+{% endblock %}

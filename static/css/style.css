@@ -1,0 +1,310 @@
+/* Corporate HR Premium Theme Stylesheet */
+
+:root {
+    --primary-color: #0B5E8E;
+    --accent-color: #2D9CDB;
+    --bg-color: #F5F7FA;
+    --card-bg: #FFFFFF;
+    
+    /* Status Colors */
+    --status-working: #27AE60;      /* Green */
+    --status-completed: #0B5E8E;    /* Blue */
+    --status-late: #F2994A;         /* Orange */
+    --status-absent: #EB5757;       /* Red */
+    
+    --text-primary: #2D3748;
+    --text-secondary: #718096;
+    --border-color: #E2E8F0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--primary-color) !important;
+    border-bottom: 3px solid var(--accent-color);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* Cards & Layout */
+.card {
+    background: var(--card-bg);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-stats:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+}
+
+.stats-card-border-working { border-top: 4px solid var(--status-working); }
+.stats-card-border-completed { border-top: 4px solid var(--status-completed); }
+.stats-card-border-late { border-top: 4px solid var(--status-late); }
+.stats-card-border-absent { border-top: 4px solid var(--status-absent); }
+
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+
+.stats-icon-total { background-color: rgba(11, 94, 142, 0.1); color: var(--primary-color); }
+.stats-icon-working { background-color: rgba(39, 174, 96, 0.1); color: var(--status-working); }
+.stats-icon-completed { background-color: rgba(11, 94, 142, 0.1); color: var(--status-completed); }
+.stats-icon-late { background-color: rgba(242, 153, 74, 0.1); color: var(--status-late); }
+.stats-icon-absent { background-color: rgba(235, 87, 87, 0.1); color: var(--status-absent); }
+
+/* Badges */
+.badge-status {
+    padding: 0.5em 0.8em;
+    font-weight: 600;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-working { background-color: rgba(39, 174, 96, 0.12); color: var(--status-working); border: 1px solid rgba(39, 174, 96, 0.2); }
+.badge-completed { background-color: rgba(11, 94, 142, 0.12); color: var(--status-completed); border: 1px solid rgba(11, 94, 142, 0.2); }
+.badge-late { background-color: rgba(242, 153, 74, 0.12); color: var(--status-late); border: 1px solid rgba(242, 153, 74, 0.2); }
+.badge-absent { background-color: rgba(235, 87, 87, 0.12); color: var(--status-absent); border: 1px solid rgba(235, 87, 87, 0.2); }
+
+/* Custom Excel-like Tables */
+.table-container {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background-color: #F8FAFC !important;
+    color: #4A5568;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+    padding: 12px 16px;
+    position: relative;
+    user-select: none;
+}
+
+/* Sticky Headers */
+.sticky-table-header th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #F8FAFC;
+    box-shadow: 0 1px 0 var(--border-color);
+}
+
+/* Excel Column Filters Styling */
+.excel-filter-th {
+    padding-right: 32px !important;
+}
+
+.excel-filter-trigger {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #A0AEC0;
+    transition: color 0.15s ease;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.excel-filter-trigger:hover,
+.excel-filter-trigger.active {
+    color: var(--primary-color);
+    background-color: #E2E8F0;
+}
+
+/* Custom Dropdown for Excel Filter */
+.excel-filter-dropdown {
+    width: 240px;
+    max-height: 380px;
+    padding: 12px;
+    font-size: 0.85rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    border: 1px solid #CBD5E0;
+    border-radius: 8px;
+    z-index: 1050;
+    overflow-y: auto;
+}
+
+.excel-filter-dropdown .filter-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+}
+
+.excel-filter-dropdown .filter-search-box {
+    margin-bottom: 10px;
+}
+
+.excel-filter-dropdown .filter-list {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px;
+    background-color: #FFF;
+}
+
+.excel-filter-dropdown .filter-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.excel-filter-dropdown .filter-list-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+/* Date Hierarchical List */
+.hierarchy-node {
+    margin-left: 12px;
+    border-left: 1px dashed #CBD5E0;
+    padding-left: 8px;
+}
+
+.hierarchy-toggle {
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-right: 4px;
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+}
+
+/* Today's Table Styling (Main/Top Table) */
+.table-today {
+    background-color: #FFFFFF;
+}
+
+.table-today th {
+    border-top: 3px solid var(--accent-color);
+}
+
+.table-today tbody tr {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.table-today tbody td {
+    padding: 16px;
+    color: #1A202C;
+}
+
+/* History Table Styling (Bottom Table) */
+.table-history-container {
+    max-height: 480px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.table-history {
+    background-color: #F8FAFC;
+    font-size: 0.9rem;
+}
+
+.table-history tbody tr {
+    background-color: #F8FAFC;
+}
+
+.table-history tbody tr:hover {
+    background-color: #EDF2F7;
+}
+
+.table-history tbody td {
+    padding: 10px 14px;
+    color: #4A5568;
+    font-weight: 400;
+}
+
+.table-history th {
+    background-color: #EDF2F7 !important;
+}
+
+/* Chart Canvas Wrapper */
+.chart-container {
+    position: relative;
+    margin: auto;
+    height: 250px;
+    width: 100%;
+}
+
+/* Utility Layouts */
+.date-range-badge {
+    background-color: #E2E8F0;
+    color: #4A5568;
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Spinner for Loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Animations */
+@keyframes pulseGreen {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(39, 174, 96, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
+}
+
+.live-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: var(--status-working);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulseGreen 2s infinite;
+}

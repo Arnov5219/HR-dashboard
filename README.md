@@ -31,8 +31,6 @@ The attendance system follows a fixed 4-punch daily workflow (maximum 4 punches 
 ## 📁 Folder Structure
 
 ```text
-carline_attendance/
-│
 ├── carline_attendance/      # Django project settings and URLs
 │   ├── settings.py
 │   ├── urls.py
