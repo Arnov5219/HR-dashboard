@@ -6,11 +6,6 @@
     --bg-color: #F5F7FA;
     --card-bg: #FFFFFF;
     
-    /* Status Colors */
-    --status-working: #27AE60;      /* Green */
-    --status-completed: #0B5E8E;    /* Blue */
-    --status-late: #F2994A;         /* Orange */
-    --status-absent: #EB5757;       /* Red */
     
     --text-primary: #2D3748;
     --text-secondary: #718096;

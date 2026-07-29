@@ -192,15 +192,26 @@
         historyState.page = 1;
     });
 
+    document.getElementById('attendance-search').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            refreshDashboard();
+        }
+    });
+
     document.getElementById('history-date-range').addEventListener('change', event => {
         historyState.dateRange = event.target.value;
         historyState.page = 1;
         document.getElementById('custom-date-range').classList.toggle('d-none', event.target.value !== 'custom');
         document.getElementById('custom-date-range').classList.toggle('d-flex', event.target.value === 'custom');
+        loadTable('history');
     });
 
     ['history-start-date', 'history-end-date'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => historyState.page = 1);
+        document.getElementById(id).addEventListener('change', () => {
+            historyState.page = 1;
+            loadTable('history');
+        });
     });
 
     renderRows('today', [], 'Press Refresh to load today\'s attendance records.');

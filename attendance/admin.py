@@ -14,7 +14,7 @@ class EmployeeAdmin(admin.ModelAdmin):
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
     """Admin configuration for Attendance model."""
-    list_display = ('employee', 'date', 'in_time', 'break_start', 'break_end', 'final_out', 'status')
-    list_filter = ('status', 'date')
+    list_display = ('employee', 'date', 'in_time')
+    list_filter = ('date',)
     search_fields = ('employee__employee_id', 'employee__name')
 

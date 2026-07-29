@@ -187,15 +187,6 @@ class ExcelAttendanceService:
         return None
 
     @classmethod
-    def calculate_status(cls, in_time, out_time):
-        office_start_time = getattr(settings, 'OFFICE_START_TIME', time(9, 30))
-        if not in_time:
-            return "Absent"
-        if in_time > office_start_time:
-            return "Late"
-        return "Present"
-
-    @classmethod
     def get_processed_records(cls, target_date):
         employees, records = cls.load_data()
         
@@ -207,7 +198,6 @@ class ExcelAttendanceService:
         for emp_id, emp_name in employees.items():
             if emp_id in date_records_map:
                 rec = dict(date_records_map[emp_id])
-                rec['status'] = cls.calculate_status(rec['in_time'], rec['out_time'])
                 processed.append(rec)
             else:
                 # Synthesize Absent record
@@ -217,8 +207,7 @@ class ExcelAttendanceService:
                     'date': target_date,
                     'in_time': None,
                     'out_time': None,
-                    'total_hours': None,
-                    'status': 'Absent'
+                    'total_hours': None
                 })
         return processed
 
@@ -232,28 +221,12 @@ class ExcelAttendanceService:
         processed = []
         for r in history_records:
             rec = dict(r)
-            rec['status'] = cls.calculate_status(rec['in_time'], rec['out_time'])
             processed.append(rec)
             
         return processed
 
     @classmethod
-    def get_stats_for_date(cls, target_date):
-        records = cls.get_processed_records(target_date)
-        total_employees = len(records)
-        present = sum(1 for r in records if r['status'] == 'Present')
-        late = sum(1 for r in records if r['status'] == 'Late')
-        absent = sum(1 for r in records if r['status'] == 'Absent')
-        
-        return {
-            'total_employees': total_employees,
-            'present': present,
-            'late': late,
-            'absent': absent
-        }
-
-    @classmethod
-    def get_filtered_records(cls, records, search_query=None, employee_ids=None, date_range=None, status_list=None, sort_col=None, sort_dir=None, months=None, weeks=None):
+    def get_filtered_records(cls, records, search_query=None, employee_ids=None, date_range=None, sort_col=None, sort_dir=None, weeks=None):
         filtered = list(records)
         
         # 1. Global Search Query
@@ -263,7 +236,6 @@ class ExcelAttendanceService:
                 r for r in filtered
                 if q in r['employee_id'].lower() or
                    q in r['employee_name'].lower() or
-                   q in r['status'].lower() or
                    (r['date'] and q in r['date'].strftime('%Y-%m-%d'))
             ]
             
@@ -288,21 +260,7 @@ class ExcelAttendanceService:
             if end_date:
                 filtered = [r for r in filtered if r['date'] <= end_date]
                 
-        # 4. Status list filter
-        if status_list:
-            if isinstance(status_list, str):
-                status_list = [x.strip() for x in status_list.split(',') if x.strip()]
-            status_set = set(x.lower() for x in status_list)
-            filtered = [r for r in filtered if r['status'].lower() in status_set]
-            
-        # 4b. Months filter (Multi-select)
-        if months:
-            if isinstance(months, str):
-                months = [x.strip() for x in months.split(',') if x.strip()]
-            months_set = set(months)
-            filtered = [r for r in filtered if r['date'] and r['date'].strftime('%B %Y') in months_set]
-            
-        # 4c. Weeks filter (Multi-select)
+        # 4. Weeks filter (Multi-select)
         if weeks:
             if isinstance(weeks, str):
                 weeks = [x.strip() for x in weeks.split(',') if x.strip()]
@@ -320,8 +278,7 @@ class ExcelAttendanceService:
                 'in_time': 'in_time',
                 'out': 'out_time',
                 'out_time': 'out_time',
-                'total_hours': 'total_hours',
-                'status': 'status'
+                'total_hours': 'total_hours'
             }
             sort_key = key_map.get(sort_col.lower(), sort_col)
             

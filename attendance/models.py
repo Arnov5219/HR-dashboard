@@ -19,14 +19,6 @@ class Employee(models.Model):
 class Attendance(models.Model):
     """Represents daily attendance record for an employee."""
 
-    STATUS_CHOICES = [
-        ('Present', 'Present'),
-        ('Working', 'Working'),
-        ('On Break', 'On Break'),
-        ('Checked Out', 'Checked Out'),
-        ('Absent', 'Absent'),
-    ]
-
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
@@ -34,10 +26,6 @@ class Attendance(models.Model):
     )
     date = models.DateField()
     in_time = models.TimeField(null=True, blank=True)
-    break_start = models.TimeField(null=True, blank=True)
-    break_end = models.TimeField(null=True, blank=True)
-    final_out = models.TimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Absent')
 
     class Meta:
         ordering = ['-date', 'employee__employee_id']
@@ -48,24 +36,6 @@ class Attendance(models.Model):
             )
         ]
 
-    def update_status(self) -> None:
-        """Update status automatically based on attendance punches."""
-        if self.final_out:
-            self.status = 'Checked Out'
-        elif self.break_end:
-            self.status = 'Working'
-        elif self.break_start:
-            self.status = 'On Break'
-        elif self.in_time:
-            self.status = 'Working'
-        else:
-            self.status = 'Absent'
-
-    def save(self, *args, **kwargs) -> None:
-        if self.status != 'Present':
-            self.update_status()
-        super().save(*args, **kwargs)
-
     def __str__(self) -> str:
-        return f"{self.employee.employee_id} | {self.date} | {self.status}"
+        return f"{self.employee.employee_id} | {self.date}"
 

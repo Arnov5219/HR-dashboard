@@ -35,29 +35,26 @@ class Command(BaseCommand):
 
         today = date.today()
 
-        # Create today's attendance records following the 4-punch workflow
+        # Create today's attendance records
         sample_attendances = [
-            (employees[0], time(9, 0), time(13, 0), time(13, 30), time(18, 0)),   # Checked Out
-            (employees[1], time(9, 2), time(13, 0), None, None),                 # On Break
-            (employees[2], time(8, 55), time(12, 30), time(13, 0), time(17, 30)), # Checked Out
-            (employees[3], None, None, None, None),                              # Absent
-            (employees[4], time(9, 10), None, None, None),                       # Working
-            (employees[5], time(9, 0), time(13, 0), time(13, 30), time(17, 0)),   # Checked Out
-            (employees[6], None, None, None, None),                              # Absent
-            (employees[7], time(8, 50), time(12, 45), time(13, 15), None),        # Working
-            (employees[8], time(9, 15), time(13, 15), time(13, 45), time(17, 15)), # Checked Out
-            (employees[9], time(9, 5), time(13, 0), None, None),                 # On Break
+            (employees[0], time(9, 0)),
+            (employees[1], time(9, 2)),
+            (employees[2], time(8, 55)),
+            (employees[3], None),
+            (employees[4], time(9, 10)),
+            (employees[5], time(9, 0)),
+            (employees[6], None),
+            (employees[7], time(8, 50)),
+            (employees[8], time(9, 15)),
+            (employees[9], time(9, 5)),
         ]
 
-        for emp, in_t, b_start, b_end, f_out in sample_attendances:
+        for emp, in_t in sample_attendances:
             Attendance.objects.update_or_create(
                 employee=emp,
                 date=today,
                 defaults={
                     "in_time": in_t,
-                    "break_start": b_start,
-                    "break_end": b_end,
-                    "final_out": f_out,
                 }
             )
 

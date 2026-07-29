@@ -5,7 +5,6 @@ __pycache__/
 *.pyd
 
 # Django environment and DB
-.env
 db.sqlite3
 
 # Virtual environment
