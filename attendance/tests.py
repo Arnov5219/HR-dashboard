@@ -117,3 +117,12 @@ class AttendanceDashboardTestCase(TestCase):
         self.assertEqual(data['total_count'], 2)
         self.assertEqual(data['records'][0]['employee_name'], 'John Doe')
         self.assertEqual(data['records'][1]['employee_name'], 'Jane Smith')
+
+    def test_history_attendance_api_all_date_range_returns_all_records(self) -> None:
+        """The All date range does not limit historical attendance by date."""
+        request = self.factory.get(f"{reverse('attendance:api_attendance_history')}?date_range=all")
+        response = api_attendance_history_view(request)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode())
+
+        self.assertEqual(data['total_count'], 2)

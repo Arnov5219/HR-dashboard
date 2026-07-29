@@ -56,7 +56,10 @@ def _parse_request_filters(request):
     start_date, end_date = None, None
     today = date.today()
     
-    if date_range_type == 'yesterday':
+    if date_range_type == 'all':
+        # Keep both bounds unset so the complete attendance history is returned.
+        start_date, end_date = None, None
+    elif date_range_type == 'yesterday':
         yest = today - timedelta(days=1)
         start_date, end_date = yest, yest
     elif date_range_type == 'last_7_days':
