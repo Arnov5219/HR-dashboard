@@ -51,6 +51,12 @@ def _parse_request_filters(request):
     else:
         weeks = []
         
+    months = request.GET.get('months', '')
+    if months:
+        months = [x.strip() for x in months.split(',') if x.strip()]
+    else:
+        months = []
+        
     # Date Range Filter
     date_range_type = request.GET.get('date_range', '')
     start_date, end_date = None, None
@@ -78,11 +84,11 @@ def _parse_request_filters(request):
         if selected_dates_str:
             dates_list = [ExcelAttendanceService._parse_date(x.strip()) for x in selected_dates_str.split(',') if x.strip()]
             dates_list = [d for d in dates_list if d is not None]
-            return search_query, employee_ids, None, None, dates_list, weeks
+            return search_query, employee_ids, None, None, dates_list, weeks, months
             
-    return search_query, employee_ids, start_date, end_date, None, weeks
+    return search_query, employee_ids, start_date, end_date, None, weeks, months
 
-def _apply_filters(records, search_query, employee_ids, start_date, end_date, selected_dates, weeks):
+def _apply_filters(records, search_query, employee_ids, start_date, end_date, selected_dates, weeks, months):
     """Apply the filters supported by the dashboard pages."""
     date_range = None
     if start_date or end_date:
@@ -95,6 +101,10 @@ def _apply_filters(records, search_query, employee_ids, start_date, end_date, se
         date_range=date_range,
         weeks=weeks
     )
+    if months:
+        months_set = set(months)
+        filtered = [r for r in filtered if r['date'] and r['date'].strftime('%Y-%m') in months_set]
+        
     if selected_dates:
         dates_set = set(selected_dates)
         filtered = [r for r in filtered if r['date'] in dates_set]
@@ -155,8 +165,8 @@ def api_attendance_today_view(request):
         records = ExcelAttendanceService.get_processed_records(today)
         
         # Parse and apply search/filters
-        search_q, emp_ids, start_d, end_d, sel_dates, weeks = _parse_request_filters(request)
-        filtered = _apply_filters(records, search_q, emp_ids, start_d, end_d, sel_dates, weeks)
+        search_q, emp_ids, start_d, end_d, sel_dates, weeks, months = _parse_request_filters(request)
+        filtered = _apply_filters(records, search_q, emp_ids, start_d, end_d, sel_dates, weeks, months)
         
         # Paginate & return
         data = _paginate_and_serialize(request, filtered)
@@ -171,8 +181,8 @@ def api_attendance_history_view(request):
         records = ExcelAttendanceService.get_all_attendance_history(today)
         
         # Parse and apply search/filters
-        search_q, emp_ids, start_d, end_d, sel_dates, weeks = _parse_request_filters(request)
-        filtered = _apply_filters(records, search_q, emp_ids, start_d, end_d, sel_dates, weeks)
+        search_q, emp_ids, start_d, end_d, sel_dates, weeks, months = _parse_request_filters(request)
+        filtered = _apply_filters(records, search_q, emp_ids, start_d, end_d, sel_dates, weeks, months)
         
         # Paginate & return
         data = _paginate_and_serialize(

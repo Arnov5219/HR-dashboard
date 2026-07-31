@@ -89,7 +89,8 @@
         search: savedFilters.get('search') || '',
         employees: savedFilters.get('employees') || '',
         dates: savedFilters.get('dates') || '',
-        weeks: savedFilters.get('weeks') || ''
+        weeks: savedFilters.get('weeks') || '',
+        months: savedFilters.get('months') || ''
     };
     const todayState = { page: 1, ...sharedFilters };
     const historyState = { page: 1, ...sharedFilters, dateRange: 'last_7_days' };
@@ -104,6 +105,7 @@
         if (state.search) query.set('search', state.search);
         if (state.employees) query.set('employees', state.employees);
         if (state.weeks) query.set('weeks', state.weeks);
+        if (state.months) query.set('months', state.months);
         if (isHistory) {
             query.set('date_range', state.dateRange);
             if (state.dateRange === 'custom') {
