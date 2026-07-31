@@ -162,6 +162,9 @@ def api_attendance_today_view(request):
     try:
         today = date.today()
         # Today's records are processed (with synthethic Absent records for employees not present)
+        force_refresh = request.GET.get('refresh') == '1'
+        if force_refresh:
+            ExcelAttendanceService.load_data(force_refresh=True)
         records = ExcelAttendanceService.get_processed_records(today)
         
         # Parse and apply search/filters
@@ -178,6 +181,9 @@ def api_attendance_history_view(request):
     """JSON endpoint for Historical Attendance records."""
     try:
         today = date.today()
+        force_refresh = request.GET.get('refresh') == '1'
+        if force_refresh:
+            ExcelAttendanceService.load_data(force_refresh=True)
         records = ExcelAttendanceService.get_all_attendance_history(today)
         
         # Parse and apply search/filters

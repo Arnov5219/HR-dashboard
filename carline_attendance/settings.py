@@ -79,7 +79,7 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Excel file path for attendance data
-ATTENDANCE_EXCEL_PATH = Path(r'C:\Users\arnov\Documents\Attendance System\HR_Master.xlsm')
+ATTENDANCE_EXCEL_PATH = Path(r'C:\CARLine attendance\Attendance System\HR_Master.xlsm')
 
 # Office hours configuration
 from datetime import time

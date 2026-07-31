@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
     <h2 class="fw-bold mb-0 text-primary">HR Attendance Dashboard</h2>
-    <button class="btn btn-outline-primary" type="button" onclick="refreshDashboard()">
+    <button id="refresh-button" class="btn btn-outline-primary" type="button" onclick="refreshDashboard(true)">
         <i class="fa-solid fa-arrows-rotate me-1"></i>Refresh
     </button>
 </div>
@@ -154,14 +154,16 @@
             </li>`;
     }
 
-    async function loadTable(tableName) {
+    async function loadTable(tableName, forceRefresh = false) {
         const isHistory = tableName === 'history';
         const state = isHistory ? historyState : todayState;
         const url = isHistory ? '/api/attendance/history/' : '/api/attendance/today/';
         const emptyMessage = isHistory ? 'No previous attendance records found.' : 'No attendance records found for today.';
 
         try {
-            const response = await fetch(`${url}?${buildQuery(state, isHistory)}`);
+            const query = buildQuery(state, isHistory);
+            if (forceRefresh) query.set('refresh', '1');
+            const response = await fetch(`${url}?${query}`, { cache: forceRefresh ? 'no-store' : 'default' });
             if (!response.ok) throw new Error('Unable to load attendance records.');
             const data = await response.json();
             renderRows(tableName, data.records, emptyMessage);
@@ -183,9 +185,23 @@
         loadTable(tableName);
     }
 
-    function refreshDashboard() {
-        loadTable('today');
-        loadTable('history');
+    async function refreshDashboard(forceRefresh = false) {
+        const button = document.getElementById('refresh-button');
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Refreshing';
+        }
+        if (forceRefresh) {
+            // Reload the workbook once, then render both tables from that same fresh snapshot.
+            await loadTable('today', true);
+            await loadTable('history');
+        } else {
+            await Promise.all([loadTable('today'), loadTable('history')]);
+        }
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fa-solid fa-arrows-rotate me-1"></i>Refresh';
+        }
     }
 
     document.getElementById('attendance-search').addEventListener('input', event => {

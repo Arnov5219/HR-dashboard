@@ -20,7 +20,8 @@ class ExcelAttendanceService:
         return excel_path
 
     @classmethod
-    def load_data(cls):
+    def load_data(cls, force_refresh=False):
+        """Load attendance data, optionally bypassing the workbook cache."""
         excel_path = cls.get_excel_path()
         if not os.path.exists(excel_path):
             raise FileNotFoundError(f"Excel file not found at path: {excel_path}")
@@ -28,7 +29,11 @@ class ExcelAttendanceService:
         mtime = os.path.getmtime(excel_path)
         
         with cls._lock:
-            if cls._cached_data is not None and cls._cached_mtime == mtime:
+            if (
+                not force_refresh
+                and cls._cached_data is not None
+                and cls._cached_mtime == mtime
+            ):
                 return cls._cached_employees, cls._cached_data
             
             # Load workbook
