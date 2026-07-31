@@ -25,7 +25,7 @@
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm py-2.5">
         <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'attendance:dashboard' %}">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'attendance:dashboard' %}?refresh=1" onclick="if (typeof refreshDashboard === 'function') { refreshDashboard(true); return false; }">
                 <i class="fa-solid fa-square-poll-horizontal fs-4 text-white"></i>
                 <span>CARLine Technology</span>
             </a>
@@ -35,7 +35,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active fw-semibold" href="{% url 'attendance:dashboard' %}">
+                        <a class="nav-link active fw-semibold" href="{% url 'attendance:dashboard' %}?refresh=1" onclick="if (typeof refreshDashboard === 'function') { refreshDashboard(true); return false; }">
                             <i class="fa-solid fa-chart-line me-1"></i> Dashboard
                         </a>
                     </li>

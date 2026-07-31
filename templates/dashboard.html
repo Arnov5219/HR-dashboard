@@ -5,9 +5,14 @@
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
     <h2 class="fw-bold mb-0 text-primary">HR Attendance Dashboard</h2>
-    <button id="refresh-button" class="btn btn-outline-primary" type="button" onclick="refreshDashboard(true)">
-        <i class="fa-solid fa-arrows-rotate me-1"></i>Refresh
-    </button>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'attendance:dashboard' %}?refresh=1">
+            <i class="fa-solid fa-house me-1"></i>Home
+        </a>
+        <button id="refresh-button" class="btn btn-outline-primary" type="button" onclick="refreshDashboard(true)">
+            <i class="fa-solid fa-arrows-rotate me-1"></i>Refresh
+        </button>
+    </div>
 </div>
 
 <div class="card shadow-sm mb-4">
@@ -129,7 +134,7 @@
         body.innerHTML = records.map(record => `
             <tr>
                 <td>${escapeHtml(record.employee_id)}</td>
-                <td class="fw-semibold text-primary">${escapeHtml(record.employee_name)}</td>
+                <td class="fw-semibold text-primary">${tableName === 'today' ? `<button type="button" class="btn btn-link p-0 fw-semibold text-primary text-decoration-none employee-search" data-employee-name="${escapeHtml(record.employee_name)}" title="Search for ${escapeHtml(record.employee_name)}">${escapeHtml(record.employee_name)}</button>` : escapeHtml(record.employee_name)}</td>
                 <td>${escapeHtml(record.date || '-')}</td>
                 <td>${escapeHtml(record.in_time || '-')}</td>
                 <td>${escapeHtml(record.out_time || '-')}</td>
@@ -204,6 +209,19 @@
         }
     }
 
+    document.getElementById('today-table-body').addEventListener('click', event => {
+        const employeeButton = event.target.closest('.employee-search');
+        if (!employeeButton) return;
+
+        const employeeName = employeeButton.dataset.employeeName;
+        document.getElementById('attendance-search').value = employeeName;
+        todayState.search = employeeName;
+        historyState.search = employeeName;
+        todayState.page = 1;
+        historyState.page = 1;
+        refreshDashboard();
+    });
+
     document.getElementById('attendance-search').addEventListener('input', event => {
         todayState.search = event.target.value.trim();
         historyState.search = event.target.value.trim();
@@ -242,7 +260,7 @@
         savedFilters.delete('refresh');
         const query = savedFilters.toString();
         window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-        refreshDashboard();
+        refreshDashboard(true);
     }
 </script>
 {% endblock %}
