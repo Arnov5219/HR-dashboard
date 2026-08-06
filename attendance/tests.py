@@ -12,7 +12,8 @@ from attendance.views import (
     dashboard_view,
     api_filters_view,
     api_attendance_today_view,
-    api_attendance_history_view
+    api_attendance_history_view,
+    api_status_view
 )
 
 
@@ -38,6 +39,7 @@ class AttendanceDashboardTestCase(TestCase):
         self.factory = RequestFactory()
         self.today = date.today()
         self.yesterday = self.today - timedelta(days=1)
+        self.three_weeks_ago = self.today - timedelta(days=21)
         
         self.mock_employees = {
             'EMP001': 'John Doe',
@@ -58,6 +60,14 @@ class AttendanceDashboardTestCase(TestCase):
                 'employee_id': 'EMP002',
                 'employee_name': 'Jane Smith',
                 'date': self.yesterday,
+                'in_time': time(9, 0),
+                'out_time': time(17, 0),
+                'total_hours': '08:00'
+            },
+            {
+                'employee_id': 'EMP001',
+                'employee_name': 'John Doe',
+                'date': self.three_weeks_ago,
                 'in_time': time(9, 0),
                 'out_time': time(17, 0),
                 'total_hours': '08:00'
@@ -88,6 +98,28 @@ class AttendanceDashboardTestCase(TestCase):
         self.assertEqual(len(data['employees']), 2)
         self.assertIn('available_dates', data)
         self.assertIn('weeks', data)
+        self.assertIn('employee_dates', data)
+        
+        # Verify weeks are sorted numerically descending
+        cal_today = self.today.isocalendar()
+        cal_old = self.three_weeks_ago.isocalendar()
+        
+        week_today_str = f"Week {cal_today.week} ({cal_today.year})"
+        week_old_str = f"Week {cal_old.week} ({cal_old.year})"
+        
+        self.assertIn(week_today_str, data['weeks'])
+        self.assertIn(week_old_str, data['weeks'])
+        self.assertLess(data['weeks'].index(week_today_str), data['weeks'].index(week_old_str))
+
+    def test_status_api(self) -> None:
+        """Status API should return the file modified time and total records."""
+        request = self.factory.get(reverse('attendance:api_status'))
+        response = api_status_view(request)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode())
+        self.assertIn('mtime', data)
+        self.assertIn('record_count', data)
+        self.assertEqual(data['record_count'], 3)
 
     def test_today_attendance_api_search(self) -> None:
         """Today's attendance endpoint should return matching employees."""
@@ -114,7 +146,7 @@ class AttendanceDashboardTestCase(TestCase):
         data = json.loads(response.content.decode())
         
         # Returns both yesterday's record for Jane Smith and today's record for John Doe
-        self.assertEqual(data['total_count'], 2)
+        self.assertEqual(data['total_count'], 3)
         self.assertEqual(data['records'][0]['employee_name'], 'John Doe')
         self.assertEqual(data['records'][1]['employee_name'], 'Jane Smith')
 
@@ -125,4 +157,4 @@ class AttendanceDashboardTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode())
 
-        self.assertEqual(data['total_count'], 2)
+        self.assertEqual(data['total_count'], 3)

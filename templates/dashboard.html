@@ -1,14 +1,18 @@
 {% extends 'base.html' %}
 
-{% block title %}HR Attendance Dashboard{% endblock %}
+{% block title %} Attendance{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-    <h2 class="fw-bold mb-0 text-primary">HR Attendance Dashboard</h2>
-    <div class="d-flex gap-2">
+    <h2 class="fw-bold mb-0 text-primary">Live Dashboard</h2>
+    <div class="d-flex gap-2 align-items-center">
         <a class="btn btn-outline-secondary" href="{% url 'attendance:dashboard' %}?refresh=1">
             <i class="fa-solid fa-house me-1"></i>Home
         </a>
+        <button id="live-button" class="btn btn-outline-danger d-flex align-items-center gap-2" type="button" onclick="toggleLiveMode()">
+            <span id="live-dot" class="rounded-circle bg-danger" style="width: 8px; height: 8px; display: inline-block;"></span>
+            <span>Live</span>
+        </button>
         <button id="refresh-button" class="btn btn-outline-primary" type="button" onclick="refreshDashboard(true)">
             <i class="fa-solid fa-arrows-rotate me-1"></i>Refresh
         </button>
@@ -53,16 +57,30 @@
         <div class="d-flex flex-wrap align-items-center gap-2">
             <label for="history-date-range" class="small text-secondary">Date range</label>
             <select id="history-date-range" class="form-select form-select-sm" style="width: 150px;">
-                <option value="all">All</option>
+                <option value="all" selected>All</option>
                 <option value="yesterday">Yesterday</option>
-                <option value="last_7_days" selected>Last 7 Days</option>
+                <option value="last_7_days">Last 7 Days</option>
                 <option value="this_month">This Month</option>
                 <option value="custom">Custom range</option>
             </select>
             <div id="custom-date-range" class="d-none align-items-center gap-2">
-                <input id="history-start-date" class="form-control form-control-sm" type="date" aria-label="Start date">
+                <div class="dropdown">
+                    <button id="history-start-date-btn" class="btn btn-outline-secondary btn-sm dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">Start Date</button>
+                    <div class="dropdown-menu p-3 shadow" style="min-width: 300px;">
+                        <div id="history-start-calendar"></div>
+                    </div>
+                </div>
+                <input id="history-start-date" type="hidden">
+                
                 <span class="small text-secondary">to</span>
-                <input id="history-end-date" class="form-control form-control-sm" type="date" aria-label="End date">
+                
+                <div class="dropdown">
+                    <button id="history-end-date-btn" class="btn btn-outline-secondary btn-sm dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">End Date</button>
+                    <div class="dropdown-menu p-3 shadow" style="min-width: 300px;">
+                        <div id="history-end-calendar"></div>
+                    </div>
+                </div>
+                <input id="history-end-date" type="hidden">
             </div>
         </div>
     </div>
@@ -98,7 +116,7 @@
         months: savedFilters.get('months') || ''
     };
     const todayState = { page: 1, ...sharedFilters };
-    const historyState = { page: 1, ...sharedFilters, dateRange: 'last_7_days' };
+    const historyState = { page: 1, ...sharedFilters, dateRange: 'all' };
     document.getElementById('attendance-search').value = sharedFilters.search;
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({
@@ -244,23 +262,184 @@
         loadTable('history');
     });
 
-    ['history-start-date', 'history-end-date'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => {
-            historyState.page = 1;
-            loadTable('history');
-        });
-    });
+    let startCalendar = null;
+    let endCalendar = null;
+    let allAvailableDates = [];
 
-    renderRows('today', [], 'Press Refresh to load today\'s attendance records.');
-    renderRows('history', [], 'Press Refresh to load previous attendance records.');
-    document.getElementById('today-table-info').textContent = 'Press Refresh to load records.';
-    document.getElementById('history-table-info').textContent = 'Press Refresh to load records.';
+    async function initDashboardCalendars() {
+        try {
+            const response = await fetch('/api/filters/');
+            if (!response.ok) return;
+            const data = await response.json();
+            allAvailableDates = data.available_dates.map(d => d.value);
+            
+            // Initialize Start Date Calendar
+            startCalendar = new CalendarPicker('history-start-calendar', {
+                selectedDates: [],
+                availableDates: allAvailableDates,
+                multiSelect: false,
+                onSelect: (selectedDates) => {
+                    const dateStr = [...selectedDates][0];
+                    const btn = document.getElementById('history-start-date-btn');
+                    if (dateStr) {
+                        const parts = dateStr.split('-');
+                        btn.textContent = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        document.getElementById('history-start-date').value = dateStr;
+                    } else {
+                        btn.textContent = 'Start Date';
+                        document.getElementById('history-start-date').value = '';
+                    }
+                    historyState.page = 1;
+                    loadTable('history');
+                },
+                onClear: () => {
+                    document.getElementById('history-start-date-btn').textContent = 'Start Date';
+                    document.getElementById('history-start-date').value = '';
+                    historyState.page = 1;
+                    loadTable('history');
+                }
+            });
+            
+            // Initialize End Date Calendar
+            endCalendar = new CalendarPicker('history-end-calendar', {
+                selectedDates: [],
+                availableDates: allAvailableDates,
+                multiSelect: false,
+                onSelect: (selectedDates) => {
+                    const dateStr = [...selectedDates][0];
+                    const btn = document.getElementById('history-end-date-btn');
+                    if (dateStr) {
+                        const parts = dateStr.split('-');
+                        btn.textContent = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        document.getElementById('history-end-date').value = dateStr;
+                    } else {
+                        btn.textContent = 'End Date';
+                        document.getElementById('history-end-date').value = '';
+                    }
+                    historyState.page = 1;
+                    loadTable('history');
+                },
+                onClear: () => {
+                    document.getElementById('history-end-date-btn').textContent = 'End Date';
+                    document.getElementById('history-end-date').value = '';
+                    historyState.page = 1;
+                    loadTable('history');
+                }
+            });
+        } catch (e) {
+            console.error("Error initializing dashboard calendars:", e);
+        }
+    }
 
-    if (savedFilters.get('refresh') === '1') {
+    initDashboardCalendars();
+
+    renderRows('today', [], 'Loading today\'s attendance records...');
+    renderRows('history', [], 'Loading previous attendance records...');
+    document.getElementById('today-table-info').textContent = 'Loading...';
+    document.getElementById('history-table-info').textContent = 'Loading...';
+
+    const isInitialRefresh = savedFilters.get('refresh') === '1';
+    if (isInitialRefresh) {
         savedFilters.delete('refresh');
         const query = savedFilters.toString();
         window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-        refreshDashboard(true);
+    }
+    refreshDashboard(isInitialRefresh);
+
+    // Live Mode polling implementation
+    let liveModeInterval = null;
+    let lastKnownMtime = null;
+    let lastKnownRecordCount = null;
+
+    async function checkExcelUpdates() {
+        try {
+            const response = await fetch('/api/attendance/status/');
+            if (!response.ok) return;
+            const data = await response.json();
+            
+            if (lastKnownMtime === null) {
+                lastKnownMtime = data.mtime;
+                lastKnownRecordCount = data.record_count;
+                return;
+            }
+            
+            if (data.mtime !== lastKnownMtime || data.record_count !== lastKnownRecordCount) {
+                lastKnownMtime = data.mtime;
+                lastKnownRecordCount = data.record_count;
+                await refreshDashboard(false);
+                showNotification("Attendance data updated from Excel sheet.");
+            }
+        } catch (e) {
+            console.error("Error checking Excel updates:", e);
+        }
+    }
+
+    function toggleLiveMode() {
+        const btn = document.getElementById('live-button');
+        const dot = document.getElementById('live-dot');
+        const isActive = btn.classList.contains('btn-danger');
+        
+        if (isActive) {
+            // Turn OFF Live mode
+            btn.classList.remove('btn-danger', 'text-white');
+            btn.classList.add('btn-outline-danger');
+            dot.classList.remove('bg-white', 'animate-pulse');
+            dot.classList.add('bg-danger');
+            
+            if (liveModeInterval) {
+                clearInterval(liveModeInterval);
+                liveModeInterval = null;
+            }
+        } else {
+            // Turn ON Live mode
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-danger', 'text-white');
+            dot.classList.remove('bg-danger');
+            dot.classList.add('bg-white', 'animate-pulse');
+            
+            fetch('/api/attendance/status/')
+                .then(res => res.json())
+                .then(data => {
+                    lastKnownMtime = data.mtime;
+                    lastKnownRecordCount = data.record_count;
+                })
+                .catch(console.error);
+                
+            liveModeInterval = setInterval(checkExcelUpdates, 3000);
+            refreshDashboard(false);
+        }
+    }
+
+    function showNotification(message) {
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '1055';
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-success border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fa-solid fa-circle-check me-2"></i>${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+        toast.show();
+        
+        toastEl.addEventListener('hidden.bs.toast', () => {
+            toastEl.remove();
+        });
     }
 </script>
 {% endblock %}

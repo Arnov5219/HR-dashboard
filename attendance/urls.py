@@ -7,6 +7,7 @@ from attendance.views import (
     api_filters_view,
     api_attendance_today_view,
     api_attendance_history_view,
+    api_status_view,
 )
 
 app_name = 'attendance'
@@ -17,4 +18,5 @@ urlpatterns = [
     path('api/filters/', api_filters_view, name='api_filters'),
     path('api/attendance/today/', api_attendance_today_view, name='api_attendance_today'),
     path('api/attendance/history/', api_attendance_history_view, name='api_attendance_history'),
+    path('api/attendance/status/', api_status_view, name='api_status'),
 ]

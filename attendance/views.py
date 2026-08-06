@@ -1,4 +1,5 @@
 import math
+import os
 from datetime import date, timedelta
 
 from django.shortcuts import render
@@ -15,7 +16,7 @@ def filters_view(request):
     return render(request, 'filters.html')
 
 def api_filters_view(request):
-    """Return the options used by the Filters page."""
+    """Render the options used by the Filters page."""
     try:
         employees, records = ExcelAttendanceService.load_data()
         unique_dates = sorted(list(set(r['date'] for r in records if r['date'])), reverse=True)
@@ -23,14 +24,28 @@ def api_filters_view(request):
             {'value': d.strftime('%Y-%m-%d'), 'label': d.strftime('%d-%m-%Y')}
             for d in unique_dates
         ]
-        weeks = sorted(
-            {f"Week {record['date'].isocalendar().week} ({record['date'].year})" for record in records if record['date']},
-            reverse=True
-        )
+        
+        # Sort weeks numerically descending by (year, week)
+        unique_weeks = set()
+        for record in records:
+            if record['date']:
+                cal = record['date'].isocalendar()
+                unique_weeks.add((cal.year, cal.week))
+        sorted_weeks = sorted(list(unique_weeks), key=lambda x: (x[0], x[1]), reverse=True)
+        weeks = [f"Week {week} ({year})" for year, week in sorted_weeks]
+        
+        # Build mapping of employee ID to list of dates they have records for
+        employee_dates = {}
+        for r in records:
+            if r['employee_id'] and r['date']:
+                date_str = r['date'].strftime('%Y-%m-%d')
+                employee_dates.setdefault(r['employee_id'], []).append(date_str)
+                
         return JsonResponse({
             'employees': [{'id': emp_id, 'name': emp_name} for emp_id, emp_name in sorted(employees.items())],
             'available_dates': available_dates,
             'weeks': weeks,
+            'employee_dates': employee_dates,
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -198,5 +213,21 @@ def api_attendance_history_view(request):
             default_sort_dir='desc'
         )
         return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def api_status_view(request):
+    """Return the Excel file modification time and total record count for live updates."""
+    try:
+        excel_path = ExcelAttendanceService.get_excel_path()
+        mtime = os.path.getmtime(excel_path) if os.path.exists(excel_path) else 0
+        
+        # Load data to get record count
+        _, records = ExcelAttendanceService.load_data()
+        
+        return JsonResponse({
+            'mtime': mtime,
+            'record_count': len(records)
+        })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

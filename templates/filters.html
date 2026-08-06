@@ -71,188 +71,6 @@
 <style>
     .filter-options { max-height: 230px; overflow-y: auto; }
     .filter-options .form-check { margin-bottom: .35rem; }
-    
-    /* Calendar Picker Styles */
-    .calendar-container {
-        font-family: inherit;
-        user-select: none;
-    }
-    .calendar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-    }
-    .calendar-title-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        position: relative;
-    }
-    .calendar-title {
-        font-weight: 600;
-        font-size: 0.95rem;
-        color: #2d3748;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .calendar-title:hover {
-        color: var(--primary-color);
-    }
-    .calendar-arrows {
-        display: flex;
-        gap: 8px;
-    }
-    .calendar-arrow-btn {
-        background: none;
-        border: none;
-        color: #718096;
-        cursor: pointer;
-        padding: 2px 6px;
-        font-size: 0.9rem;
-        font-weight: bold;
-        border-radius: 4px;
-        transition: background 0.15s, color 0.15s;
-    }
-    .calendar-arrow-btn:hover {
-        background-color: #edf2f7;
-        color: #2d3748;
-    }
-    .calendar-weekdays {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.8rem;
-        color: #718096;
-        margin-bottom: 6px;
-    }
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 4px;
-    }
-    .calendar-day {
-        aspect-ratio: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        position: relative;
-        border: 1px solid transparent;
-        background: none;
-        padding: 0;
-        color: #2d3748;
-    }
-    .calendar-day:hover:not(.disabled) {
-        background-color: #edf2f7;
-    }
-    .calendar-day.other-month {
-        color: #cbd5e0;
-    }
-    .calendar-day.has-data {
-        font-weight: 600;
-    }
-    .calendar-day.has-data::after {
-        content: '';
-        position: absolute;
-        bottom: 3px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background-color: var(--primary-color);
-    }
-    .calendar-day.selected {
-        background-color: #4a5568 !important;
-        color: #ffffff !important;
-        border: 2px solid #1a202c !important;
-        font-weight: bold;
-    }
-    .calendar-day.selected.has-data::after {
-        background-color: #ffffff;
-    }
-    .calendar-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 12px;
-        padding-top: 8px;
-        border-top: 1px solid #e2e8f0;
-    }
-    .calendar-footer-btn {
-        background: none;
-        border: none;
-        font-size: 0.85rem;
-        cursor: pointer;
-        padding: 4px 8px;
-        border-radius: 4px;
-        text-decoration: none;
-    }
-    .calendar-footer-btn.clear {
-        color: #718096;
-    }
-    .calendar-footer-btn.clear:hover {
-        color: #2d3748;
-        background-color: #edf2f7;
-    }
-    .calendar-footer-btn.select {
-        color: var(--primary-color);
-        font-weight: 600;
-    }
-    .calendar-footer-btn.select:hover {
-        background-color: #ebf8ff;
-    }
-    
-    .calendar-month-year-popover {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        z-index: 10;
-        padding: 10px;
-        width: 180px;
-        display: none;
-    }
-    .calendar-month-year-popover.show {
-        display: block;
-    }
-    .popover-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 6px;
-        margin-bottom: 8px;
-    }
-    .popover-item {
-        font-size: 0.8rem;
-        padding: 4px;
-        text-align: center;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid transparent;
-    }
-    .popover-item:hover {
-        background-color: #edf2f7;
-    }
-    .popover-item.active {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    .popover-year-input {
-        width: 100%;
-        font-size: 0.85rem;
-        padding: 4px 8px;
-        border: 1px solid #cbd5e0;
-        border-radius: 4px;
-        text-align: center;
-    }
 </style>
 
 <script>
@@ -548,6 +366,29 @@
         updateFilterButton(containerId, label);
     }
 
+    function updateCalendarDots() {
+        if (!window.calendar || !window.employeeDates) return;
+        
+        const selectedEmployees = checkedValues('employee-options');
+        const allCheckboxes = document.querySelectorAll('#employee-options input');
+        const allChecked = document.getElementById('employee-all') ? document.getElementById('employee-all').checked : false;
+        
+        let activeDates;
+        if (allChecked || selectedEmployees.length === 0 || selectedEmployees.length === allCheckboxes.length) {
+            activeDates = new Set(window.allAvailableDates);
+        } else {
+            const datesSet = new Set();
+            selectedEmployees.forEach(empId => {
+                const dates = window.employeeDates[empId] || [];
+                dates.forEach(d => datesSet.add(d));
+            });
+            activeDates = datesSet;
+        }
+        
+        window.calendar.availableDates = activeDates;
+        window.calendar.updateCalendar();
+    }
+
     function updateFilterButton(containerId, label) {
         const inputs = [...document.querySelectorAll(`#${containerId} input`)];
         const selected = inputs.filter(input => input.checked);
@@ -556,6 +397,10 @@
             allCheckbox.checked = selected.length === inputs.length;
         }
         document.getElementById(`${label}-button`).textContent = selected.length === inputs.length ? `All ${label}s` : `${selected.length} ${label}${selected.length === 1 ? '' : 's'} selected`;
+        
+        if (containerId === 'employee-options') {
+            updateCalendarDots();
+        }
     }
 
     function updateDateFilterButton() {
@@ -584,6 +429,10 @@
         const response = await fetch('/api/filters/');
         if (!response.ok) throw new Error('Unable to load filter options.');
         const data = await response.json();
+        
+        window.employeeDates = data.employee_dates;
+        window.allAvailableDates = data.available_dates.map(d => d.value);
+        
         renderOptions('employee-options', data.employees.map(employee => ({ value: employee.id, label: `${employee.name} (${employee.id})` })), selectedValues.employees, 'employee');
         
         // Extract unique months from available dates
@@ -615,6 +464,7 @@
             }
         });
         updateDateFilterButton();
+        updateCalendarDots();
         
         data.weeks.forEach(week => document.getElementById('week-filter').add(new Option(week, week)));
         document.getElementById('week-filter').value = params.get('weeks') || '';
