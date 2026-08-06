@@ -1,6 +1,16 @@
-# CARLine Employee Attendance Dashboard
+# CARLine Live Attendance Dashboard
 
-A Django web application for demonstrating Django fundamentals
+A Django-based web application for monitoring employee attendance in real time. The dashboard displays live attendance records, employee status, check-in/check-out times, total working hours, and supports attendance data synchronization from the HR Excel attendance system.
+
+---
+
+## Features
+
+- **Live Attendance Dashboard**: Real-time view of all employee attendance records
+- **Employee Status**: Track current attendance status (Present, Absent, Late, On Leave)
+- **Check-in/Check-out**: Log daily attendance with timestamps
+- **Total Working Hours**: Automatic calculation of daily working hours
+- **Data Synchronization**: Import and sync attendance data from Excel files
 
 ---
 
@@ -32,7 +42,6 @@ python manage.py createsuperuser
 ```bash
 python manage.py runserver
 ```
-
-- **Attendance Dashboard**: `http://127.0.0.1:8000/`
-
-
+- **Live Attendance Dashboard:** http://127.0.0.1:4000/
+- **Admin Panel:** http://127.0.0.1:4000/admin/
+---
